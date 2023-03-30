@@ -26,4 +26,4 @@ Don't add M5Stack as external lib, because there are some changes to the origina
 ### PlatformIO and Arduino-IDE
 Projekt was build and testet with PlatformIO, for Arduino-IDE we will add in future som extra infos.
 
-...there will be more descrition in near future ;-)
+...there will be more documentation in near future ;-)
