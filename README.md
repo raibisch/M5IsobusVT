@@ -5,7 +5,15 @@
 This is an implementation of an ISOBUS-VT on the M5-Stack module 
 
 ## Helpful Infos
+
+### ISOBUS-Basics
+
 https:/https://de.wikipedia.org/wiki/ISOBUS
+https://github.com/Meisterschulen-am-Ostbahnhof-Munchen
+
+### PConvert ISOBUS Test and Simulation Program
+
+https://meisterschulen-am-ostbahnhof-munchen-docs.readthedocs.io/projects/isobus-other-docs/de/latest/pconvert.html
 
 
 ## Licence
