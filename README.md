@@ -8,8 +8,6 @@ This is an implementation of an ISOBUS-VT on the M5-Stack module
 https:/https://de.wikipedia.org/wiki/ISOBUS
 
 
-## Authors
-Reinhard Hübner ... and some work from Andreas Horn and Jürgen Goldmann
 ## Licence
 [Licensed under the European Union Public License (EUPL)-1.2-or-later](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12)
 
