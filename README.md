@@ -1,7 +1,6 @@
 # M5IsobusVT
 
 [![License](https://img.shields.io/badge/license-EUPL1.2-green)](license/LICENSE.md)
-[![donate](https://img.shields.io/badge/donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/goldmannjuergen)
 
 This is an implementation of an ISOBUS-VT on the M5-Stack module 
 
