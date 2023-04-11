@@ -23,6 +23,6 @@ the project contains in the 'lib'-directory all references to used libs. There i
 Don't add M5Stack as external lib, because there are some changes to the original lib.
 
 ### PlatformIO and Arduino-IDE
-Projekt was build and testet with PlatformIO, for Arduino-IDE we will add in future som extra infos.
+Projekt was build and testet with PlatformIO, for Arduino-IDE we will add in future some extra infos.
 
-...there will be more documentation in near future ;-)
+...still a first apha-version...there will be more documentation in near future ;-)
