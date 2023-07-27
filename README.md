@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-EUPL1.2-green)](license/LICENSE.md)
 
-This is an implementation of an ISOBUS-VT on the M5-Stack module 
+This is an implementation of an ISOBUS-VT on the M5-Stack module. Most of the code is from my College Reinhard Hübner (thank you very much for this great work). I only rearange some part of the code to compile it with PlatformIO and remove some unused code.
 
 ## Helpful Infos
 
@@ -14,7 +14,6 @@ https://github.com/Meisterschulen-am-Ostbahnhof-Munchen
 ### PConvert ISOBUS Test and Simulation Program
 
 https://meisterschulen-am-ostbahnhof-munchen-docs.readthedocs.io/projects/isobus-other-docs/de/latest/pconvert.html
-
 
 ## Licence
 [Licensed under the European Union Public License (EUPL)-1.2-or-later](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12)
