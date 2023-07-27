@@ -133,7 +133,7 @@ class TVTAuxObject : public TVTObject{
     uint8_t VTEventList[1]={VTOnSoftKeyPress};
   public:
     String   VTObjName="TVTAuxObject";
-    uint8_t VTPointerTyp=0; //         :TVTAuxPointerTyp;
+    uint8_t  VTPointerTyp=0; //         :TVTAuxPointerTyp;
     uint16_t VTValue=0xFFFF;
     //
     uint16_t VTZExternalObjectRef=0xFFFF;

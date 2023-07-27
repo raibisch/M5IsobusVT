@@ -125,6 +125,7 @@ uint8_t optn=0,la=0,ls=0,ds=0;
            if (valid){
              pVT_Net->TFT_ButtonPressed=pMsg->DATA[1];
              pVT_Net->VTPoolRefresh=true;
+             //Serial.println("getVTMacrosListEvents=" + String(pVT_Net->VTObjID) + "/" + String(eventID));
              getVTMacrosListEvents(pVT_Net,pVT_Net->VTObjID,eventID);
            } 
          } //not ds
@@ -166,7 +167,7 @@ uint8_t keyNr=pVT_Net->TFT_KeySelect+1, eventID=VTOnPointingPress;//27;
 boolean TVT_VTSelectInput::setMsgToAttr(CANMsg *pMsg,TVT_Net *pVT_Net){
 boolean valid=false;
 uint16_t objID=pVT_Net->VTObjID;
-uint8_t keyNr=0xFF,eventID=VTOnInputFieldSelection; //19
+uint8_t keyNr=0xFF,eventID=VTOnInputFieldSelection; //19, VTOnInputFieldDeselection;//20
    pMsg->ID=VTtoECU_PGN + (ECU_VT_PRIO<<24) + (pVT_Net->VT_DST[pVT_Net->listNr]<<8) + pVT_Net->VT_SRC;
    pMsg->MSG_TX=1;  pMsg->MSGTYPE=1; pMsg->LEN=8;
      //
@@ -182,12 +183,13 @@ uint8_t keyNr=0xFF,eventID=VTOnInputFieldSelection; //19
       keyNr=pVT_Net->TFT_InputSelect;
        if (keyNr==255) pVT_Net->TFT_InputSelectObjID=0xFFFF;
      }
-     //   
+     //
+   VTEdit=(pVT_Net->VTPageSelect==2);     
    pMsg->DATA[0]=VT0PCommFunction;
    pMsg->DATA[1]=((pVT_Net->VTObjID>>0) & 0xFF);
    pMsg->DATA[2]=((pVT_Net->VTObjID>>8) & 0xFF);
    pMsg->DATA[3]=(keyNr<255); //select/deselect
-   pMsg->DATA[4]=0x00; //edit open 
+   pMsg->DATA[4]=VTEdit; //edit close/open 
    pMsg->DATA[5]=0xFF;
    pMsg->DATA[6]=0xFF;
    pMsg->DATA[7]=0x0F; //TAN number
@@ -232,7 +234,7 @@ uint8_t keyNr=pVT_Net->TFT_KeySelect,  eventID=VTOnESC; //21;
 //TVT_VTChangeNumericValue Implementaion   0x05
 boolean TVT_VTChangeNumericValue::setMsgToAttr(CANMsg *pMsg,TVT_Net *pVT_Net){
 boolean  valid=false,TEST=false;
-uint8_t  keyNr=0xFF,nn=0,mm=0, eventID=VTOnEntryOfValue;//=22   //VTOnEntryOfNewValue;//23 
+uint8_t  keyNr=0xFF,nn=0,mm=0, dz=0,frmt=0,just=0,en=0,eventID=VTOnEntryOfValue;//=22   //VTOnEntryOfNewValue;//23 
 int16_t  refIdx=-1;
 uint16_t refObj=0xFFFF,objID=0xFFFF;
 uint32_t vMin=0,vMax=0xFFFFFFFF,int4=0;
@@ -277,11 +279,11 @@ float rr=1.000, erg=0.000;
               pVT_Net->streamStr.writeBytesVal(VTValue,mm,nn);
            }
          valid=true;
-        }//input checkbox
+        }//input checkbox=7
         //
         //InputList
         if (pVT_Net->VTObjType==10) {
-         nn=7;
+         nn=7; 
          refObj =pVT_Net->streamStr.readBytesVal(2,nn); nn+=2;
          VTValue=pVT_Net->streamStr.readBytesVal(1,nn); nn++;
          vMax=pVT_Net->streamStr.readBytesVal(1,nn);
@@ -306,15 +308,21 @@ float rr=1.000, erg=0.000;
              if (pVT_Net->VTValue>0xFF) pVT_Net->VTValue=0xFF;
            }
            //
-           if (VTValue!=pVT_Net->VTValue) {
-              VTValue=pVT_Net->VTValue;
-              eventID=VTOnEntryOfNewValue;
-              nn=9; mm=1;
+           if (pVT_Net->getVTValue) {
+            pVT_Net->VTValue=VTValue;
+            pVT_Net->VTValueStr=String(VTValue);
+            return true;
+           }else{
+              if (VTValue!=pVT_Net->VTValue) {
+               VTValue=pVT_Net->VTValue;
+               eventID=VTOnEntryOfNewValue;
+               nn=9; mm=1;
                  if (refObj<0xFFFF) {nn=3; mm=4;}
-              pVT_Net->streamStr.writeBytesVal(VTValue,mm,nn);
+               pVT_Net->streamStr.writeBytesVal(VTValue,mm,nn);
+             }
            }
          valid=true;
-        }//inputlist
+        }//inputlist=10
         //
         //input numeric Field
         if (pVT_Net->VTObjType==9) {
@@ -332,6 +340,14 @@ float rr=1.000, erg=0.000;
           //Scale
           int4=pVT_Net->streamStr.readBytesVal(4,nn);nn+=4;
           rr=getFloatFromInt(int4);
+          //Decimals
+          dz=pVT_Net->streamStr.readBytesVal(1,nn);nn+=1;
+          //Format
+          frmt=pVT_Net->streamStr.readBytesVal(1,nn);nn+=1;
+          //Justification
+          just=pVT_Net->streamStr.readBytesVal(1,nn);nn+=1;
+          //Enabled
+          en=pVT_Net->streamStr.readBytesVal(1,nn);nn+=1;
              //
              if (refObj<0xFFFF) {
                refIdx=getVTObjID(pVT_Net,refObj); refObj=0xFFFF;
@@ -350,15 +366,42 @@ float rr=1.000, erg=0.000;
                 erg=VTValue;
                 pVT_Net->VTValue=VTValue;
              }
-            valid=((pVT_Net->VTValue>=vMin) && (pVT_Net->VTValue<=vMax));
-             if ((valid) && (VTValue!=pVT_Net->VTValue)) {
-              VTValue=pVT_Net->VTValue;
-              eventID=VTOnEntryOfNewValue; nn=13;
-                if (refObj<0xFFFF) nn=3;
-              pVT_Net->streamStr.writeBytesVal(VTValue,4,nn);
+             //
+             if (pVT_Net->getVTValue) {
+              pVT_Net->VTValueStr=getNumericResult(VTValue,offs,int4,0,dz,frmt);
+              return true;
+             }else{
+              valid=((pVT_Net->VTValue>=vMin) && (pVT_Net->VTValue<=vMax));
+                if ((valid) && (VTValue!=pVT_Net->VTValue)) {
+                 VTValue=pVT_Net->VTValue;
+                 eventID=VTOnEntryOfNewValue; nn=13;
+                   if (refObj<0xFFFF) nn=3;
+                 pVT_Net->streamStr.writeBytesVal(VTValue,4,nn);
+                }
              }
-        }//input numeric field
+        }//input numeric field=9
         //     
+        //input AuxDesignPointer
+        if (pVT_Net->VTObjType==33) {
+         nn=4;
+         //actual value refObj
+         VTValue=pVT_Net->streamStr.readBytesVal(2,nn);
+           //
+           if (pVT_Net->getVTValue) {
+            pVT_Net->VTValue=VTValue;
+            pVT_Net->VTValueStr=String(VTValue);
+            return true;
+           }else{
+              if (VTValue!=pVT_Net->VTValue) {
+               VTValue=pVT_Net->VTValue;
+               eventID=VTOnEntryOfNewValue;
+               nn=4; mm=2;
+               pVT_Net->streamStr.writeBytesVal(VTValue,mm,nn);
+             }
+            valid=true; 
+           }
+        }//input AuxDesignPointer=33        
+        //
         //
         //TEST
         if (TEST) { 
@@ -370,6 +413,8 @@ float rr=1.000, erg=0.000;
           Serial.println(VTValue);
           Serial.println(pVT_Net->VTValue);
         }
+        
+       getStreamStrInfo(pVT_Net);
         //
         if (TEST) getStreamStrInfo(pVT_Net);
         if ((valid) && (eventID==VTOnEntryOfNewValue)) setVTObjectListValue(pVT_Net,refIdx);
@@ -457,7 +502,9 @@ int16_t  refIdx=-1;
    refIdx=getVTObjID(pVT_Net,pVT_Net->VTObjID);
      //input string Field
      if ((refIdx>=0) && (pVT_Net->VTObjType==8)){
-         nn=13;
+         nn=8;
+         pVT_Net->VTInpFont=pVT_Net->streamStr.readBytesVal(2,nn);nn+=2; 
+         pVT_Net->VTInpAttr=pVT_Net->streamStr.readBytesVal(2,nn);nn+=3; 
          refObj=pVT_Net->streamStr.readBytesVal(2,nn);nn+=3; 
          olen=pVT_Net->streamStr.readBytesVal(1,nn);nn++;
          //actual value
@@ -478,7 +525,8 @@ int16_t  refIdx=-1;
               }
           }
           if (pVT_Net->VTValueStr.length()==0) {
-            pVT_Net->VTValueStr=VTNewValue;  
+            pVT_Net->VTValueStr=VTNewValue;
+              if (pVT_Net->getVTValue) return true;
           }else {
             nlen=pVT_Net->VTValueStr.length();
               if (nlen>olen) pVT_Net->VTValueStr=pVT_Net->VTValueStr.substring(0,olen); 
@@ -536,7 +584,7 @@ int16_t  refIdx=-1;
 
 
 //==============================================================================
-//TVT_VTDisplayActivation Implementaion   0x09  for WindowMask or KeyGroup
+//TVT_VTDisplayActivation Implementaion   0x09  for WindowMask or KeyGroup, DataMask or SoftkeyMask
 boolean TVT_VTDisplayActivation::setMsgToAttr(CANMsg *pMsg,TVT_Net *pVT_Net){
 boolean valid=false;
    pMsg->ID=VTtoECU_PGN + (ECU_VT_PRIO<<24) + (pVT_Net->VT_DST[pVT_Net->listNr]<<8) + pVT_Net->VT_SRC;
@@ -546,8 +594,8 @@ boolean valid=false;
    pMsg->DATA[1]=((pVT_Net->VT_ActiveMask>>0) & 0xFF);
    pMsg->DATA[2]=((pVT_Net->VT_ActiveMask>>8) & 0xFF);
    pMsg->DATA[3]=0x01; 
-   pMsg->DATA[4]=((pVT_Net->VT_ActiveMask>>0) & 0xFF);  
-   pMsg->DATA[5]=((pVT_Net->VT_ActiveMask>>8) & 0xFF);
+   pMsg->DATA[4]=((pVT_Net->VT_ActiveSoftKeyMask>>0) & 0xFF);  
+   pMsg->DATA[5]=((pVT_Net->VT_ActiveSoftKeyMask>>8) & 0xFF);
    pMsg->DATA[6]=0x01;
    pMsg->DATA[7]=0x0F; //TAN number
    valid=true;

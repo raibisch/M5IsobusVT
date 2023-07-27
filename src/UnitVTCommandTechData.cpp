@@ -20,15 +20,12 @@
 //==============================================================================
 boolean VT_CAN_Transmit(TVT_Net *pVT_Net,CANMsg *pMsg){
 boolean sendMSG=false;
-String str="";
-String ss="";
-String objStr="";
+String str="",ss="",objStr="";
 uint16_t objID=0xFFFF,w=pVT_Net->w,h=pVT_Net->h,ww=w,hh=h;
 int16_t x=pVT_Net->x,y=pVT_Net->y, xx=x,yy=y;
 boolean serialOut_old=pVT_Net->serialOut;
 TVT_ViewRect ViewRect;
- if (pVT_Net->CAN_active)
- {
+ if (pVT_Net->CAN_active){
   //send VTStatus
   if (millis()-pVT_Net->pTime>=1000) {
     pVT_Net->Flash++;
@@ -91,14 +88,10 @@ TVT_ViewRect ViewRect;
     sendMSG=msgObj.getTransportProtcol(pMsg,pVT_Net,&pVT_Net->stream_TP[pVT_Net->listNr]);
   }
   //
-  // by JG: Klammern bei If Abfrge
-  if (sendMSG) {VT_CAN_MsgSend(pVT_Net,pMsg); }  //CAN0.sendMsgBuf(0x1CE6FF26, 1, 8, data);
+  if (sendMSG) VT_CAN_MsgSend(pVT_Net,pMsg);   //CAN0.sendMsgBuf(0x1CE6FF26, 1, 8, data);
   //
-  
  return sendMSG;
  }//can_active 
- // by JG: return auch auserhalb von can active
- return sendMSG;
 }//VT_CAN_Transmit
 
 
@@ -106,10 +99,10 @@ TVT_ViewRect ViewRect;
 //==============================================================================
 //write/read Image
 //==============================================================================
-//get screenshot picture from screen
+//get screenshot bmp-picture from screen
 boolean writeImageDirect(TVT_Net *pVT_Net){
-uint8_t  bitDef=2;
-uint16_t w=pVT_Net->w,h=pVT_Net->h;
+uint8_t  bitDef=3;
+uint16_t w=pVT_Net->w,h=pVT_Net->h,i=0;
 int16_t  x=pVT_Net->x, y=pVT_Net->y,yy=y;
 uint32_t wh=bitDef*w*h, sz=wh+54;
    pVT_Net->streamStr.clear(); 
@@ -161,27 +154,33 @@ uint32_t wh=bitDef*w*h, sz=wh+54;
    //getArray8Info(pVT_Net,(uint8_t*) buff,64);
    //
    uint8_t tft_buffer[bitDef*w];
+   //   
    Set_alpha(pVT_Net,0x00);
    Set_setScreenShot(pVT_Net,true);
-   yy=y+h-1;   
-     /*
-     while(yy>=y) {
-      //pVT_Net->tft.readRectRGB(x, yy, w, 1, (uint8_t *)tft_buffer);
-      pVT_Net->tft.readRect(x, yy, w, 1, (uint16_t *)tft_buffer);
-      pVT_Net->streamStr.writeBytes((uint8_t*) tft_buffer,bitDef*w);
-      yy--;
-     }//while    
-     */
+   //
+   Serial.println("ImgMode=" + String(pVT_Net->ImgMode));
+   Serial.println("VTPageSelect=" + String(pVT_Net->VTPageSelect));
+   //
    yy=y+h-1;   
      while(yy>=y) {
-       Set_pushImageAlpha(pVT_Net,x,yy,w,1,(uint16_t*) tft_buffer,NULL,0xFFFF);
+       pVT_Net->tft.readRectRGB(x,yy,w,1,(uint8_t*) tft_buffer);
+            //swap rgb->bgr
+            for (i=0;i<bitDef*w;i++){
+              if ((i+1) % 3==0)  {
+                uint8_t b=tft_buffer[i];
+                tft_buffer[i]=tft_buffer[i-2];
+                tft_buffer[i-2]=b;
+              }
+            }//for i
+         //       
        pVT_Net->streamStr.writeBytes((uint8_t*) tft_buffer,bitDef*w);
        yy--;
-     }
-   
+     }//while
+     //
    pVT_Net->streamStr.setPos(0);
    Set_alpha(pVT_Net,0xFF);
    Set_setScreenShot(pVT_Net,false);
+   //
  return (pVT_Net->streamStr.available()>0);
 };//writeImageDirect
 
@@ -201,8 +200,6 @@ uint32_t nn=0;
    File file = fs.open(path, FILE_WRITE);
      if (file) {
        Serial.println(path);
-       
-       
        valid=file.write((uint8_t*) buff,nn);
        file.close();
      }//file  
@@ -216,33 +213,58 @@ uint32_t nn=0;
 
 //------------------------------------------------------------------------------
 boolean readImageScreen(fs::FS &fs, const char *path, TVT_Net *pVT_Net) {
-boolean valid=false;
+boolean valid=false,sMode=false;
 uint32_t len=0;
+uint8_t  i=0,a=0x00;
 uint8_t* buff=pVT_Net->streamStr.getBuffer();
 TVTPixelXY pXY;
  getHeapStatus(pVT_Net,10);
+ //
  File bmpFS = fs.open(path,FILE_READ);
- Serial.println(path);
+ //
+ setSerialPrint(pVT_Net,path);
   //
   if ((bmpFS) && (bmpFS.available())){
-   
    pVT_Net->streamStr.clear();
    len=bmpFS.available();
    len=bmpFS.readBytes((char*) buff,len); 
    pVT_Net->streamStr.setSize(len);
-   
    pVT_Net->streamStr.setPos(0);
-   Serial.println(pVT_Net->streamStr.available());
+   setSerialPrint(pVT_Net,String(pVT_Net->streamStr.available()));
    //getArray8Info(pVT_Net,(uint8_t*) buff,16);
    //
    getHeapStatus(pVT_Net,20);
    Set_setScreenShot(pVT_Net,true);
-   valid=GraphicDataPaintObjTo(pVT_Net,&pXY, 0);
+     //
+     if (pVT_Net->SD_DownLoad) {
+       //write length of file
+       for (i=0;i<4;i++) {
+        a=(len>>8*i) & 0xFF;  Serial.write(a);
+       }
+       // 
+      Serial.write(buff,len);
+       /*       
+       //download file write to serial
+       while (pVT_Net->streamStr.available()) {
+        Serial.write(pVT_Net->streamStr.read());
+       }//while
+       */ 
+      pVT_Net->SD_DownLoad=false; 
+      //
+     }else {
+      getStreamStrInfo(pVT_Net,128,true);
+     }
+     //
+   setSerialPrint(pVT_Net,"DOWNLOAD OK");
+   //old function
+   //valid=GraphicDataPaintObjTo(pVT_Net,&pXY, 0);
+   //
    Set_setScreenShot(pVT_Net,false);
    //
    pVT_Net->streamStr.clear();
    bmpFS.close();
-  }
+   valid=true;
+  }//bmpFS
  getHeapStatus(pVT_Net,30);
  return valid;
 };//readImageScreen
@@ -1067,7 +1089,7 @@ boolean valid=(lSize>0);
        buff=pVT_Net->streamObj[pVT_Net->listNr].getBuffer();
        valid=file.write((uint8_t*) buff,len);
        //
-       file.close();
+       file.close(); 
       }//file  
   }
  return valid;
@@ -1075,17 +1097,45 @@ boolean valid=(lSize>0);
 
 
 
+//------------------------------------------------------------------------------
+boolean TVTVersion::writeStreamToFile(fs::FS &fs, const char * path,LoopbackStream *pStream,TVT_Net *pVT_Net){
+uint16_t len=0;
+uint8_t* buff;
+String str=String(path),ss="SPIFFS";
+boolean valid=false;
+  File file = fs.open(path, FILE_WRITE);
+    if (pVT_Net->SD_Mode) ss="SD";
+    //
+    if (file) {
+      pStream->setPos(0);
+      buff=pStream->getBuffer();
+      len=pStream->available();
+      Serial.print("WRITE:" + ss + str + "\tbytes="); Serial.println(len);
+      valid=file.write((uint8_t*) buff,len);
+      //
+      file.close(); 
+    }//file  
+ return valid;
+};//TVTVersion::writeStreamToFile
+
+
+
+
+
 //==============================================================================
 boolean TVTVersion::readFile(fs::FS &fs, const char *path, LoopbackStream *pStream,TVT_Net *pVT_Net) {
 uint8_t* buff;
 uint32_t i=0,len=0,buffSize=0;
-String str=String(path);
+String str=String(path),ss="SPIFFS";
 boolean valid=false;
   File file = fs.open(path,FILE_READ);
+    //
+    if (pVT_Net->SD_Mode) ss="SD";
+    //
     if (file){
       len=file.available();
-      pStream->clear();
-      Serial.print(str + "\tbytes="); Serial.println(len);
+      Serial.print("READFILE:" + ss + str + "\tbytes="); Serial.println(len);
+       if (pStream!=NULL) pStream->clear();
        //
        if (str.indexOf(".iop")>0) {
          if (len>255*7+1) {
@@ -1112,18 +1162,20 @@ boolean valid=false;
              } 
          }
        } else{
-        buffSize=pStream->getBufferSize();        
-          if (len<=buffSize) {
+         if (pStream!=NULL){
+          buffSize=pStream->getBufferSize();        
+           if (len<=buffSize) {
             pStream->clear();
             buff=pStream->getBuffer();
             len=file.readBytes((char*) buff,len); 
             pStream->setSize(len);pStream->setPos(0);
             valid=true;
-          }
+           }
+         } 
        }
        //
        if (!valid) {
-         Serial.println("fileSize>bufferSize=" + String(len) + ">" + String(buffSize));
+         Serial.println(":fileSize>bufferSize=" + String(len) + ">" + String(buffSize));
        }
        //
       file.close();

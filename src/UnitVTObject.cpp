@@ -15,16 +15,36 @@
 
 //==============================================================================
 //
-#ifdef COM_MODUL_MODE
-  //internal communication modul
-  //#define CAN0_INT 15     // Set INT to internal pin 15 Int
-  //#define CAN0_CS 12      // Set CS  to internal pin 22
-  MCP_CAN VTCAN0(CAN0_CS);  // Set CS  to internal pin 12 CS
+#ifdef COM_CAN_MODE
+ CAN_device_t CAN_cfg;  // CAN Config
+ /*
+ #ifdef COM_CAN_MODE_A 
+  #define CAN_TX GPIO_NUM_32
+  #define CAN_RX GPIO_NUM_33
+ #endif
+ //Port B
+ #ifdef COM_CAN_MODE_B 
+  #define CAN_TX GPIO_NUM_26
+  #define CAN_RX GPIO_NUM_36
+ #endif
+ //Port C
+ #ifdef COM_CAN_MODE_C 
+  #define CAN_TX GPIO_NUM_16
+  #define CAN_RX GPIO_NUM_17
+ #endif
+ */
 #else
-  //external MCP2515
-  //#define CAN0_INT 5     // Set INT pin 5
-  //#define CAN0_CS 2      // Set CS  pin 2
-  MCP_CAN VTCAN0(CAN0_CS); // Set CS  pin 2
+  #ifdef COM_MODUL_MODE
+    //internal communication modul
+    //#define CAN0_INT 15     // Set INT to internal pin 15 Int
+    //#define CAN0_CS 12      // Set CS  to internal pin 22
+    MCP_CAN VTCAN0(CAN0_CS);  // Set CS  to internal pin 12 CS
+  #else
+    //external MCP2515
+    //#define CAN0_INT 5     // Set INT pin 5
+    //#define CAN0_CS 2      // Set CS  pin 2
+    MCP_CAN VTCAN0(CAN0_CS); // Set CS  pin 2
+  #endif
 #endif
 //
 //
@@ -123,16 +143,46 @@
 
 //==============================================================================
 //Files
+String getInsertLineValue(TVT_Net *pVT_Net,String str){
+String lStr=pVT_Net->inputLineString,ss="";
+int16_t k=-1;  
+  //setSerialPrint(pVT_Net,lStr); 
+  k=lStr.indexOf("=");lStr=lStr.substring(0,k);
+  //Serial.println(lStr); 
+  pVT_Net->inputLineString.remove(0,k+1);
+  //Serial.println(pVT_Net->inputLineString); 
+  //
+  k=str.indexOf(lStr);
+  k=str.indexOf("=",k);
+  //Serial.println(k);
+  ss=str.substring(0,k+1);
+  //Serial.println(delm0);
+  //Serial.println(ss);
+  //            
+  k=str.indexOf("\"",k);
+  //Serial.println(delm0);
+  //Serial.println(k);
+  str.remove(0,k);
+  //Serial.println(delm0);
+  //Serial.println(str);
+  //     
+  str=ss + pVT_Net->inputLineString + str;
+  return str;
+};//getInsertLineValue
+
+
+//==============================================================================
+//Files
 uint8_t getFileExists(TVT_Net *pVT_Net, uint8_t fsMode, const char *path){
 uint8_t mm=0;
-  if (pVT_Net->sd_available) {
+  if (pVT_Net->valid_sd) {
     if ((mm==0) && (pVT_Net->fs_SD!=NULL)) {
       if ((fsMode==1) || (fsMode==2)) {
         if (pVT_Net->fs_SD->exists(path)) mm=1;
       }
     }
   }
-  if (pVT_Net->sp_available) {
+  if (pVT_Net->valid_sp) {
     if ((mm==0) && (pVT_Net->fs_SP!=NULL)) {
       if ((fsMode==0) || (fsMode==2)) {
         if (pVT_Net->fs_SP->exists(path)) mm=1;
@@ -140,7 +190,88 @@ uint8_t mm=0;
     }
   }
 return mm;
-}
+};//getFileExists
+
+
+//==============================================================================
+uint8_t getVTInpFontType(TVT_Net *pVT_Net){
+uint8_t fntType=0,nn=5;
+int16_t objIdx=-1;
+  //get Font type of input
+  if (pVT_Net->VTInpFont<0xFFFF){
+    objIdx=getVTObjID(pVT_Net,pVT_Net->VTInpFont);
+     if (objIdx>=0){ 
+       //getStreamStrInfo(pVT_Net);
+       fntType=pVT_Net->streamStr.readBytesVal(1,nn);
+     }//objIdx>=0 
+  }//<0xFFFF
+ return fntType; 
+};//getVTInpFontType  
+
+
+
+//==============================================================================
+//get UniCode Text
+void setUniCodeTextDirect(String str, TVT_Net *pVT_Net) {
+uint16_t un=0, index=0,  w=pVT_Net->w,len=str.length(),k = 0,wx=0;
+uint8_t tw=0, th=1,i=0,fntType=pVT_Net->fntType;
+uint8_t fntW = pVT_Net->fontSet[pVT_Net->fntNr][4], fntH=pVT_Net->fontSet[pVT_Net->fntNr][5];
+int16_t x=pVT_Net->x, y=pVT_Net->y, xx = x, yy = y;
+boolean smFont=true,oCode=false,TEST=false;
+ fntW+=8;
+ oCode=pVT_Net->uniCode;pVT_Net->uniCode=true;
+  //  
+  if (!Set_smFont(pVT_Net)) smFont=false;  
+  //check uniCode
+  if (pVT_Net->uniCode) {
+    fntType=0;len=len/2;
+  }
+  //
+  for (k = 0; k < len; k++) {
+    un=getUniCodeFontIndex(str,k,pVT_Net);  
+    pVT_Net->tft.getUnicodeIndex(un, &index);
+      //
+      tw = 0; 
+        if ((smFont) && (index>=0)) {
+          if (fntW > pVT_Net->tft.gWidth[index]) tw = (fntW - pVT_Net->tft.gWidth[index]) / 2;
+          if (tw > pVT_Net->tft.gdX[index]) tw = tw - pVT_Net->tft.gdX[index];
+        }
+     //
+    xx = x + k * fntW + tw; yy = y + i * fntH + th;
+    //
+      //TEST 
+      if (TEST){
+       //xx=x+k*fntW; yy=y + i*fntH;
+       Serial.println(index);
+       Serial.println(xx);
+       Serial.println(yy);
+       Serial.println(delm0);
+      }//TEST
+    //
+    Set_setCursor(pVT_Net,xx, yy);
+      if (smFont) {
+         Set_drawGlyph(pVT_Net,un);
+      }else{
+         Set_drawString(pVT_Net,str,xx+2,yy+2);
+         return;
+      }
+    wx+=fntW;
+  } //for k
+  //
+ pVT_Net->uniCode=oCode; 
+ //
+};//setUniCodeTextDirect
+
+
+//==============================================================================
+void reset_FontImageMode(TVT_Net *pVT_Net) {
+ pVT_Net->fntName=pVT_Net->fntNamePool[pVT_Net->listNr];
+   if (pVT_Net->PSRam) pVT_Net->ImgMode=2;
+ setSerialPrint(pVT_Net,"0.last_fntName=",true);
+ setSerialPrint(pVT_Net,pVT_Net->fntName);
+ Set_loadFont(pVT_Net,pVT_Net->fntName);
+};//reset_FontImageMode
+
 
 
 //==============================================================================
@@ -184,6 +315,36 @@ void setDateTimeStructure(TVT_Net *pVT_Net) {
 };//setDateTimeStructure
 
 
+
+//==============================================================================
+time_t VTDateTimeMinute(TVT_Net *pVT_Net,boolean info,int8_t mOffset) {
+//struct tm *t;
+time_t t_of_day;
+  getDateTimeStructure(pVT_Net);  
+  t_of_day = mktime(&pVT_Net->tmstruct);
+   //
+   //get Offset
+   if (mOffset!=0) {
+     t_of_day-=60*mOffset;
+     pVT_Net->tmstruct=*localtime(&t_of_day);
+     setDateTimeStructure(pVT_Net);     
+     getDateTimeStructure(pVT_Net); 
+     //set new time
+     Set_CheckDateTime(pVT_Net);
+     // 
+     sprintf(pVT_Net->timeStrbuff, "%02d.%02d.%d %02d:%02d:%02d", 
+             pVT_Net->RTCDate.Date,pVT_Net->RTCDate.Month, pVT_Net->RTCDate.Year, 
+             pVT_Net->RTCtime.Hours, pVT_Net->RTCtime.Minutes,pVT_Net->RTCtime.Seconds);
+   }
+   //     
+   if ((info) && (pVT_Net->VTPageSelect==1)) {
+    Serial.println(t_of_day);
+   }
+  return t_of_day;
+};//VTDateTime
+
+
+
 //==============================================================================
 time_t VTDateTime(TVT_Net *pVT_Net,boolean info,int8_t hOffset) {
 //struct tm *t;
@@ -202,7 +363,7 @@ time_t t_of_day;
              pVT_Net->RTCtime.Hours, pVT_Net->RTCtime.Minutes,pVT_Net->RTCtime.Seconds);
    }
    //     
-   if ((info) && (pVT_Net->VTPushStop>0)) {
+   if ((info) && (pVT_Net->VTPageSelect==1)) {
     Serial.println(t_of_day);
    }
   return t_of_day;
@@ -290,25 +451,156 @@ time_t t_of_day0,t_of_day1;
 };//VTDateTimeInit
 
 
+
+//==============================================================================
+void setup_VTDateTime(TVT_Net *pVT_Net) {
+String fntName="arial3-0";
+    //DateTime screen   
+    if (pVT_Net->VTPageSelect==1) {
+     pVT_Net->fntNamePool[pVT_Net->listNr]=pVT_Net->fntName;
+     //     
+     resetKeyButtonInputList(pVT_Net);
+     pVT_Net->ImgMode=0; 
+       if (Set_fontLoaded) Set_unloadFont(pVT_Net); 
+       //
+     Set_fillScreen(pVT_Net,TFT_BLACK);
+     Set_resetViewport(pVT_Net);
+     Set_setTextColorBg(pVT_Net,TFT_YELLOW, TFT_BLACK);
+     //       
+     Set_loadFont(pVT_Net,fntName);
+    }else{ 
+    //normal screen
+      reset_FontImageMode(pVT_Net);
+    }//pVT_Net->VTPageSelect==1
+    //
+};//setup_VTDateTime
+
+
 //==============================================================================
 //==============================================================================
 void VT_CAN_Init(TVT_Net *pVT_Net){
 String infoStr="";
  pVT_Net->fntNr=4; pVT_Net->fntSr=0;
-  // Initialize MCP2515 running at 8MHz with a baudrate of 250kb/s and the masks and filters disabled.
-  if (VTCAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK){ 
-   infoStr="CAN-MCP2515 OK";
-   VTCAN0.setMode(MCP_NORMAL);   // Change to normal mode to allow messages to be transmitted
-   pinMode(CAN0_INT, INPUT);                            // Configuring pin for /INT input
-   pVT_Net->CAN_active=true;
-  }
-  else { 
-   infoStr="CAN-MCP2515 NOT OK";
-  } 
   //
- infoStr+=" INT=" + String(CAN0_INT) + " CS=" + String(CAN0_CS); 
+  #ifdef COM_CAN_MODE
+    infoStr="NOT OK";
+      //
+      #ifdef M5CORE2_MODE
+       CAN_cfg.speed = CAN_SPEED_500KBPS;  //!Set the Can speed=250 with 500. 
+      #else
+       CAN_cfg.speed = CAN_SPEED_250KBPS;  //Set the Can speed=250. 
+      #endif
+      //   
+      /*
+ #ifdef COM_CAN_MODE_A 
+  #define CAN_TX GPIO_NUM_32
+  #define CAN_RX GPIO_NUM_33
+ #endif
+ //Port B
+ #ifdef COM_CAN_MODE_B 
+  #define CAN_TX GPIO_NUM_26
+  #define CAN_RX GPIO_NUM_36
+ #endif
+ //Port C
+ #ifdef COM_CAN_MODE_C 
+  #define CAN_TX GPIO_NUM_16
+  #define CAN_RX GPIO_NUM_17
+ #endif
+
+    */
+    //Set the Pin foot.
+    CAN_cfg.tx_pin_id = CAN_TX;  
+    CAN_cfg.rx_pin_id = CAN_RX;
+    //
+    CAN_cfg.rx_queue = xQueueCreate(10, sizeof(CAN_frame_t));
+      if (CAN_cfg.rx_queue!=NULL) {
+        // Init CAN Module.
+         if (ESP32Can.CANInit()==0){
+           infoStr="OK"; pVT_Net->CAN_active=true;   
+         }
+      }
+    infoStr="COM_CAN=" + infoStr;
+    infoStr+=" CAN_RX=" + String(CAN_RX) + " CAN_TX=" + String(CAN_TX); 
+    infoStr+=" CAN_SPEED=250kbit";
+  #else
+    // Initialize MCP2515 running at 8MHz with a baudrate of 250kb/s and the masks and filters disabled.
+    if (VTCAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK){ 
+     infoStr="CAN-MCP2515 OK";
+     VTCAN0.setMode(MCP_NORMAL);   // Change to normal mode to allow messages to be transmitted
+     pinMode(CAN0_INT, INPUT);                            // Configuring pin for /INT input
+     pVT_Net->CAN_active=true;
+    }
+    else { 
+     infoStr="CAN-MCP2515 NOT OK";
+    } 
+    //
+   infoStr+=" INT=" + String(CAN0_INT) + " CS=" + String(CAN0_CS); 
+  #endif //COM_CAN_MODE
+  //
  setSerialPrint(pVT_Net,infoStr);
-};//VT_CAN_Init
+};//,VT_CAN_Init
+
+
+//==============================================================================
+void VT_CAN_ResetStatusInfo(TVT_Net *pVT_Net,uint8_t yMax) {
+  #ifdef MSTACK_MODE
+    pVT_Net->tft.fillRect(0,0,320,yMax,TFT_BLACK); //TFT_BLUE);
+    //pVT_Net->tft.setTextSize(2);
+  #endif
+};//VT_CAN_ResetStatusInfo
+
+
+//==============================================================================
+void WiFi_resetNetworks(TVT_Net *pVT_Net,String str) {
+    pVT_Net->SSID_List.clear();
+    pVT_Net->SSID_ListIdx=-1;
+    pVT_Net->SSID_ListIdxMax=-1;
+    pVT_Net->VTTraceLine=0;
+     if (str.length()>0){
+      VT_CAN_ResetStatusInfo(pVT_Net,200);
+      pVT_Net->tft.drawString(str,0,0);
+     }  
+};//WiFi_resetNetworks
+
+
+
+//==============================================================================
+boolean VT_CAN_TraceMsg(TVT_Net *pVT_Net,CANMsg *pMsg){
+String str="";
+float  tStamp=0.000;
+uint8_t lh=16;
+boolean vtStatus=false,ecuStatus=false,getTrace=true;
+ if ((pVT_Net->VTPageSelect==3) && (pVT_Net->VTTraceActive)){
+  //
+  vtStatus= ((pMsg->ID & 0x00FF0000)==VTtoECU_PGN);
+  ecuStatus=((pMsg->ID & 0x00FF0000)==ECUtoVT_PGN);
+   //
+   if ((vtStatus)  && (pMsg->DATA[0]==0xFE)) getTrace=(pVT_Net->VTTraceFilter & 0x01);
+   if ((ecuStatus) && (pMsg->DATA[0]==0xFF)) getTrace=(pVT_Net->VTTraceFilter & 0x02);
+   //  
+   if ((pVT_Net->CAN_active) && (getTrace)){
+    tStamp=1.000*(pMsg->TimeStamp-pVT_Net->VTTimeStamp)/1000;
+       if (pVT_Net->VTStampActive){
+        str+=String(tStamp,3); str+=" ";
+       }
+       // 
+       if (pMsg->MSG_TX==0) str+="R ";else str+="T ";
+       //
+       if (lh*pVT_Net->VTTraceLine>(200-lh)) pVT_Net->VTTraceLine=0;
+       if (pVT_Net->VTTraceLine==0) {
+        VT_CAN_ResetStatusInfo(pVT_Net,200);
+       }
+       //
+     str+=getMsgFrameStr(pMsg);
+     //TEST
+     //Serial.println(str);
+     pVT_Net->tft.drawString(str,0,lh*pVT_Net->VTTraceLine);
+     pVT_Net->VTTraceLine++;   
+   }//CAN_active
+ }//VTTraceActive
+ // 
+ return getTrace;
+};//VT_CAN_TraceMsg
 
 
 //==============================================================================
@@ -316,6 +608,10 @@ void VT_CAN_MsgFrameStr(TVT_Net *pVT_Net,CANMsg *pMsg) {
 String rxtx[2]={"RX1","TX1"}; 
   //
   pMsg->TimeStamp=millis();
+   if ((pVT_Net->VTPageSelect==3) && (pVT_Net->VTTraceActive)){
+      VT_CAN_TraceMsg(pVT_Net,pMsg);
+   }
+   //
    if (pVT_Net->LOG_active) {
     //
     if((pMsg->ID & 0x80000000) == 0x80000000){     // Determine if ID is standard (11 bits) or extended (29 bits)
@@ -324,38 +620,105 @@ String rxtx[2]={"RX1","TX1"};
       sprintf(pMsg->msgString, "%.3f %s %.3lX  %1d  ", pMsg->TimeStamp/1000.000,rxtx[pMsg->MSG_TX],(pMsg->ID & 0x1FFFFFFF), pMsg->LEN);
     }
     //
-    setSerialPrint(pVT_Net,pMsg->msgString,true);
-    pVT_Net->tft.printf(pMsg->msgString);
+    if (pVT_Net->LOG_active) {
+      setSerialPrint(pVT_Net,pMsg->msgString,true);
+      pVT_Net->tft.printf(pMsg->msgString);
+    }
     //
     if((pMsg->ID & 0x40000000) == 0x40000000){    // Determine if message is a remote request frame.
-      sprintf(pMsg->msgString, " REMOTE REQUEST FRAME");
-      setSerialPrint(pVT_Net,pMsg->msgString,true);
+      if (pVT_Net->LOG_active) {
+       sprintf(pMsg->msgString, " REMOTE REQUEST FRAME");
+       setSerialPrint(pVT_Net,pMsg->msgString,true);
+      }
     } else {
       for(byte i = 0; i<pMsg->LEN; i++){
-        sprintf(pMsg->msgString, " %.2X", pMsg->DATA[i]);
-        setSerialPrint(pVT_Net,pMsg->msgString,true);
-        //
-        pVT_Net->tft.printf(pMsg->msgString);
+        if (pVT_Net->LOG_active) {
+         sprintf(pMsg->msgString, " %.2X", pMsg->DATA[i]);
+         setSerialPrint(pVT_Net,pMsg->msgString,true);
+         pVT_Net->tft.printf(pMsg->msgString);
+        } 
       }
     }
-    pVT_Net->tft.printf("\n");
-    setSerialPrint(pVT_Net,"");    
-   }
+    //
+    if (pVT_Net->LOG_active) {
+      pVT_Net->tft.printf("\n");
+      setSerialPrint(pVT_Net,"");    
+    }
+   }//pVT_Net->LOG_active
 };//VT_CAN_MsgFrameStr
 
 
 //==============================================================================
+/*
+class CANMsg {
+public:
+   long unsigned int ID=0;               // CAN ID
+   uint8_t   LEN=8;                      // Data Length Code
+   uint8_t   DATA[256]={};               // Data array
+   uint8_t   MSGTYPE=0;                  // Remote request flag
+   uint8_t   MSG_TX=0;                   // TX transmit flag
+   uint32_t  TimeStamp=millis();         // CAN Timestamp
+   char      msgString[128];
+*/
 void VT_CAN_MsgSend(TVT_Net *pVT_Net,CANMsg *pMsg){
+boolean valid=false;
+uint8_t dst=0xFF,ctrlByte=0xFF;
 byte sndStat;
- sndStat=VTCAN0.sendMsgBuf(pMsg->ID, pMsg->MSGTYPE, pMsg->LEN, pMsg->DATA);
-   
-   if (sndStat == CAN_OK) {
-    VT_CAN_MsgFrameStr(pVT_Net,pMsg);
-   }else {
-     if (pVT_Net->LOG_active) {
-      setSerialPrint(pVT_Net,"Error Sending Message...");
+ //TECU MonitorMode
+ dst=(pMsg->ID>>8) & 0xFF;
+  if (pMsg->LEN>0) ctrlByte=pMsg->DATA[0];
+  //
+  if ((pVT_Net->listNr==(listMax-1)) && ((pMsg->ID & 0x00FF0000)==VTtoECU_PGN) && (dst==0xFF)) {
+    //check not send CAN message
+    //TEST
+    //Serial.println("pVT_Net->listNr");
+    //Serial.println(getMsgFrameStr(pMsg));
+    //Serial.println(ctrlByte);
+    //not VTActivation messages
+     //select input, key activation
+      if (ctrlByte<=0x0A) return;
+  }
+  // 
+  #ifdef COM_CAN_MODE 
+   CAN_frame_t tx_frame;
+    tx_frame.FIR.B.RTR= CAN_no_RTR;
+    tx_frame.FIR.B.FF = CAN_frame_ext;
+    tx_frame.MsgID=pMsg->ID; 
+    tx_frame.FIR.B.DLC = pMsg->LEN;
+    /*
+    TEST frame
+    tx_frame.FIR.B.RTR= CAN_no_RTR;
+    tx_frame.FIR.B.FF = CAN_frame_ext;
+    tx_frame.MsgID = 0x1CE6FF26;
+    tx_frame.FIR.B.DLC = 8;
+    //
+    tx_frame.data.u8[0] = 0xFE;
+    tx_frame.data.u8[1] = 0x26;
+    tx_frame.data.u8[2] = 0xFF;
+    tx_frame.data.u8[3] = 0xFF;
+    tx_frame.data.u8[4] = 0xFF;
+    tx_frame.data.u8[5] = 0xFF;
+    tx_frame.data.u8[6] = 0x00;
+    tx_frame.data.u8[7] = 0xFF;     
+    */ 
+     for (int i=0;i<pMsg->LEN;i++){
+      tx_frame.data.u8[i]=pMsg->DATA[i];
      }
-   }
+    //send CAN message
+    valid=(ESP32Can.CANWriteFrame(&tx_frame)==0);
+  #else  
+    sndStat=VTCAN0.sendMsgBuf(pMsg->ID, pMsg->MSGTYPE, pMsg->LEN, pMsg->DATA);
+    valid=(sndStat == CAN_OK);
+  #endif //COM_CAN_MODE
+  // 
+  if (valid) {
+   //pVT_Net->LOG_active=true;
+   VT_CAN_MsgFrameStr(pVT_Net,pMsg); pMsg->TimeStamp=millis();
+  }else {
+    if (pVT_Net->LOG_active) {
+      setSerialPrint(pVT_Net,"Error Sending Message...");
+    }
+  }
 };//VT_CAN_MsgSend
 
 
@@ -375,23 +738,45 @@ boolean abortAddr=false,valid=false;
     //
     if (abortAddr) {
       for (int i=0;i<2;i++){
-       Serial.print(getStringHEX(pVT_Net->VT_DST[i],2));
-       Serial.println("\t" + pVT_Net->VT_DST_WS[i]);
+       setSerialPrint(pVT_Net,getStringHEX(pVT_Net->VT_DST[i],2),true);
+       setSerialPrint(pVT_Net,"\t" + pVT_Net->VT_DST_WS[i]);
       }    
-     Serial.println(delm1);
+     setSerialPrint(pVT_Net,delm1);
     }//abortAddr
     //
     //Read Messages
     if (pVT_Net->CAN_active){
-      if(!digitalRead(CAN0_INT)) {                              // If CAN0_INT pin is low, read receive buffer
-       VTCAN0.readMsgBuf(&pMsg->ID, &pMsg->LEN, pMsg->DATA);    // Read data: len = data length, buf = data byte(s)
-       pMsg->MSG_TX=0;
-       VT_CAN_MsgFrameStr(pVT_Net,pMsg);
-       valid=true;
-       //
-       //CANMsgPGN(pMsg);
-      } 
-    } 
+      //
+      #ifdef COM_CAN_MODE
+       CAN_frame_t rx_frame;
+        if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) ==pdTRUE) {
+         valid=((rx_frame.FIR.B.FF==CAN_frame_ext) && (rx_frame.FIR.B.RTR==CAN_no_RTR));
+           if (valid) {
+             pMsg->MSG_TX=0; pMsg->MSGTYPE=0;
+             pMsg->ID=rx_frame.MsgID; 
+             pMsg->LEN=rx_frame.FIR.B.DLC;
+               //
+               for (int i=0;i<pMsg->LEN;i++){
+                pMsg->DATA[i]=rx_frame.data.u8[i];
+               }//for i
+               //
+             VT_CAN_MsgFrameStr(pVT_Net,pMsg); 
+             //setSerialPrint(pVT_Net,getMsgFrameStr(pMsg));
+           }//valid
+        }//xQueueReceive
+         //
+      #else
+        if(!digitalRead(CAN0_INT)) {                              // If CAN0_INT pin is low, read receive buffer
+         VTCAN0.readMsgBuf(&pMsg->ID, &pMsg->LEN, pMsg->DATA);    // Read data: len = data length, buf = data byte(s)
+         pMsg->MSG_TX=0;
+         VT_CAN_MsgFrameStr(pVT_Net,pMsg);
+         //setSerialPrint(pVT_Net,getMsgFrameStr(pMsg));
+         valid=true;
+         //
+         //CANMsgPGN(pMsg);
+        }
+      #endif //COM_CAN_MODE 
+    }//pVT_Net->CAN_active 
  return valid;   
 };//VT_CAN_MsgReceive
 
@@ -416,18 +801,18 @@ uint32_t heapTime=millis(),dTime=heapTime-pVT_Net->heapTime;
  #ifdef ESP32
   pVT_Net->heapTime=heapTime;
     if (hNr<255) {  
-     Serial.print(delm0 + "\n" + String(hNr));
-     Serial.print(".ESP.getFreeHeap_Res/Max/Stack=");
-     Serial.print(String(i) + "/" + String(ESP.getHeapSize()));
+     setSerialPrint(pVT_Net,delm0 + "\n" + String(hNr),true);
+     setSerialPrint(pVT_Net,".ESP.getFreeHeap_Res/Max/Stack=",true);
+     setSerialPrint(pVT_Net,String(i) + "/" + String(ESP.getHeapSize()),true);
      void* SpActual = NULL;
-     Serial.print("/" + String((uint32_t)&SpActual - (uint32_t) pVT_Net->StackPtrEnd));
-     Serial.print("/Time[ms]=" + String(dTime));
+     setSerialPrint(pVT_Net,"/" + String((uint32_t)&SpActual - (uint32_t) pVT_Net->StackPtrEnd),true);
+     setSerialPrint(pVT_Net,"/Time[ms]=" + String(dTime),true);
      /*
-     Serial.print("/Objects=" + String(getVTObjectListSize(pVT_Net)));
-     Serial.print("/List=" + String(pVT_Net->listNr));
-     Serial.print("/ImageMode=" + String(pVT_Net->ImgMode) + "/InfoMode=" + String(pVT_Net->VT_InfoMode));
+     setSerialPrint(pVT_Net,"/Objects=" + String(getVTObjectListSize(pVT_Net)),true);
+     setSerialPrint(pVT_Net,"/List=" + String(pVT_Net->listNr),true);
+     setSerialPrint(pVT_Net,"/ImageMode=" + String(pVT_Net->ImgMode) + "/InfoMode=" + String(pVT_Net->VT_InfoMode),true);
      */
-     Serial.print("\n" + delm0 + "\n");
+     setSerialPrint(pVT_Net,"\n" + delm0 + "\n",true);
     }
  #endif 
 return i;
@@ -482,7 +867,7 @@ uint16_t w=0, h=0, objID=0xFFFF;
    if (objID==0xFFFF) objID=pVT_Net->TFT_InputSelectObjID;
    //
    if (objID<0xFFFF){
-    Serial.println("SelectObjID=" + String(objID));
+    setSerialPrint(pVT_Net,"SelectObjID=" + String(objID));
     x=pVT_Net->streamDraw.readBytesVal(2,nn); nn+=2;
     y=pVT_Net->streamDraw.readBytesVal(2,nn); nn+=2;
     w=pVT_Net->streamDraw.readBytesVal(2,nn); nn+=2;
@@ -493,7 +878,7 @@ uint16_t w=0, h=0, objID=0xFFFF;
     Set_fillRect(pVT_Net,x, y+h-dw, w, dw, cl);
     Set_fillRect(pVT_Net,x, y, dw, h, cl);
    }
-};     
+};//paintSelectionFrame     
 
 
 
@@ -567,10 +952,10 @@ uint8_t  funct=0x00;
       pMsg->MSG_TX=1;  pMsg->MSGTYPE=1; pMsg->LEN=8;
         //TEST
         if (TEST) {
-         Serial.println("ActiveMask=" + String(pVT_Net->VT_ActiveMask));
-         Serial.println("ActiveSoftKeyMask=" + String(pVT_Net->VT_ActiveSoftKeyMask));
-         Serial.println("KeyNr=" + String(keyNr));   
-         Serial.println("ObjID=" + String(objID));   
+         setSerialPrint(pVT_Net,"ActiveMask=" + String(pVT_Net->VT_ActiveMask));
+         setSerialPrint(pVT_Net,"ActiveSoftKeyMask=" + String(pVT_Net->VT_ActiveSoftKeyMask));
+         setSerialPrint(pVT_Net,"KeyNr=" + String(keyNr));   
+         setSerialPrint(pVT_Net,"ObjID=" + String(objID));   
         }
       pVT_Net->TFT_ButtonPressed=-1;
         //
@@ -582,13 +967,13 @@ uint8_t  funct=0x00;
              if (str=="R") pVT_Net->TFT_ButtonPressed=0; //release
           }
           //
-          if (str=="P") Serial.println("Pressed");
-          if (str=="H") Serial.println("StillPtressed");   
-          if (str=="R") Serial.println("Released");   
+          if (str=="P") setSerialPrint(pVT_Net,"Pressed");
+          if (str=="H") setSerialPrint(pVT_Net,"StillPtressed");   
+          if (str=="R") setSerialPrint(pVT_Net,"Released");   
           //
           if ((str=="A") || (str=="S")){
-             if (str=="A")  Serial.println("Pressed ACKN");   
-             if (str=="S")  Serial.println("Released ACKN");
+             if (str=="A")  setSerialPrint(pVT_Net,"Pressed ACKN");   
+             if (str=="S")  setSerialPrint(pVT_Net,"Released ACKN");
            pVT_Net->VTObjID=0xFFFF;
           }
         } else {
@@ -610,9 +995,9 @@ uint8_t  funct=0x00;
             //
             //VT_ChangeNumericValue
             if (str.indexOf("V")==0) {
-              Serial.println(str);
+              setSerialPrint(pVT_Net,str);
               str.remove(0,1);
-               if (str.length()>0) Serial.println(str);
+               if (str.length()>0) setSerialPrint(pVT_Net,str);
               pVT_Net->VTValueStr=str;
               pVT_Net->VTValue=str.toInt();
               funct=0x05; //EntryOfValue//EntryOfNewValue
@@ -708,7 +1093,7 @@ int16_t objIdx=-1,keyNr=-1,keyMax=-1,nn=4,refIdx=-1,i=0,keyFound=0;
           VTPoolDataRefreshDirect(pVT_Net);
         }
      valid=setKeyDownUpSelect(pVT_Net,pMsg,str); 
-     Serial.println("TFT_KeySelectObjID=" + String(pVT_Net->TFT_KeySelectObjID));
+     setSerialPrint(pVT_Net,"TFT_KeySelectObjID=" + String(pVT_Net->TFT_KeySelectObjID));
        if (valid) {
         pVT_Net->VTPoolRefresh=true; pVT_Net->VTPoolClear=false;     
        }
@@ -721,7 +1106,7 @@ int16_t objIdx=-1,keyNr=-1,keyMax=-1,nn=4,refIdx=-1,i=0,keyFound=0;
        if (refIdx<0) keyNr=0;  
      pVT_Net->TFT_ButtonSelect=keyNr;
      valid=setKeyDownUpSelect(pVT_Net,pMsg,str); 
-     Serial.println("TFT_ButtonSelectObjID=" + String(pVT_Net->TFT_ButtonSelectObjID));
+     setSerialPrint(pVT_Net,"TFT_ButtonSelectObjID=" + String(pVT_Net->TFT_ButtonSelectObjID));
        if (valid) {
         pVT_Net->VTPoolRefresh=true; pVT_Net->VTPoolClear=false;     
        }
@@ -733,7 +1118,7 @@ int16_t objIdx=-1,keyNr=-1,keyMax=-1,nn=4,refIdx=-1,i=0,keyFound=0;
        if (refIdx<0) keyNr=0;  
      pVT_Net->TFT_InputSelect=keyNr;
      valid=setKeyDownUpSelect(pVT_Net,pMsg,str); 
-     Serial.println("TFT_InputSelectObjID=" + String(pVT_Net->TFT_InputSelectObjID));
+     setSerialPrint(pVT_Net,"TFT_InputSelectObjID=" + String(pVT_Net->TFT_InputSelectObjID));
        if (valid) {
         pVT_Net->VTPoolRefresh=true; pVT_Net->VTPoolClear=false;     
        }
@@ -1838,17 +2223,37 @@ void Set_drawNumber(TVT_Net *pVT_Net,int nn,int16_t x, int16_t y,uint8_t tSize){
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+boolean Set_smFont(TVT_Net *pVT_Net){
+boolean smFont=true;
+  //Check SD and SPIFFS for font-data
+  if ((!pVT_Net->valid_sd) && (!pVT_Net->valid_sp)){
+    smFont=false;
+  }
+  if (pVT_Net->stream_Font[0][0].getSize()==0) smFont=false;
+  //
+ return smFont;
+}  
+
+
+
+//------------------------------------------------------------------------------
 uint16_t Set_fontsLoaded(TVT_Net *pVT_Net){
 uint16_t fonts=0;
- fonts= pVT_Net->tft.fontsLoaded();
+  //Check SD and SPIFFS for font-data
+  if (Set_smFont(pVT_Net)) {
+   fonts= pVT_Net->tft.fontsLoaded();
+  }
  return fonts; 
 };//Set_fontsLoaded      
 
 
 //------------------------------------------------------------------------------
 void Set_unloadFont(TVT_Net *pVT_Net){
-  if (pVT_Net->ImgMode) pVT_Net->ImgTFT.unloadFont();
- pVT_Net->tft.unloadFont();
+  //Check SD and SPIFFS for font-data
+  if (Set_smFont(pVT_Net)) {
+      if (pVT_Net->ImgMode) pVT_Net->ImgTFT.unloadFont();
+    pVT_Net->tft.unloadFont();
+  } 
 };//Set_unloadFont      
 
 
@@ -1862,6 +2267,8 @@ uint32_t lCount=0,nn=0;
   if (TEST) { 
    Serial.print("Set_loadFont="); 
   }
+  //Check SD and SPIFFS for font-data
+  if (!Set_smFont(pVT_Net)) return valid;
   //
   if ((pVT_Net->PSRam) && (psRam)) {
     str.replace("arial","");   j=str.indexOf("-");
@@ -1873,7 +2280,7 @@ uint32_t lCount=0,nn=0;
       }
     lCount=pVT_Net->stream_Font[i][j].available();
       //
-      if (pVT_Net->VTPushStop==0){
+      if (pVT_Net->VTPageSelect==0){
         Serial.println("lCount=" + String(lCount) + "\t" + fntName);
       }    
     valid=(lCount>16);    
@@ -1898,7 +2305,7 @@ uint32_t lCount=0,nn=0;
     valid=getFileExists(pVT_Net,0,str.c_str());
       //
       if (valid){
-        if (pVT_Net->VTPushStop==0){
+        if (pVT_Net->VTPageSelect==0){
           Serial.print("SPIFFS-FONT="); Serial.println(str);
         }
        Set_unloadFont(pVT_Net);
@@ -1913,7 +2320,7 @@ uint32_t lCount=0,nn=0;
       }else{
         //SD check
         valid=getFileExists(pVT_Net,1,str.c_str());
-         if (pVT_Net->VTPushStop==0){
+         if (pVT_Net->VTPageSelect==0){
            Serial.print("SD-FONT="); Serial.println(str);
          }
          //
@@ -1930,7 +2337,7 @@ uint32_t lCount=0,nn=0;
       }//valid
   }//PSRam 
   //
-  if ((valid) && (pVT_Net->VTPushStop==0)) pVT_Net->fntName=fntName;
+  if ((valid) && (pVT_Net->VTPageSelect==0)) pVT_Net->fntName=fntName;
   //
  return valid;   
 }; //Set_loadFont     
@@ -2525,8 +2932,8 @@ uint32_t vSize=0;
 
 
 //------------------------------------------------------------------------------
-void getStreamStrInfo(TVT_Net *pVT_Net,uint32_t dCount) {
-uint32_t lCount=pVT_Net->streamStr.available(),k=0;
+void getStreamStrInfo(TVT_Net *pVT_Net,uint32_t dCount,boolean last) {
+uint32_t lCount=pVT_Net->streamStr.available(),aCount=lCount, k=0;
 uint8_t  cc=0;
 uint8_t* buff=pVT_Net->streamStr.getBuffer();
   if ((dCount>0) and (dCount<=lCount)) lCount=dCount;
@@ -2543,6 +2950,27 @@ uint8_t* buff=pVT_Net->streamStr.getBuffer();
        //     
     Serial.println(delm0);
   }//lCount>0
+  //
+ lCount=aCount;
+ 
+  if ((last) && (lCount>=2*dCount))  {
+    k=lCount-dCount;
+    Serial.println(delm0);
+    Serial.println("lCount=" + String(lCount));
+    Serial.println("dCount=" + String(dCount));
+    Serial.println("StartIndex=" + String(k));   
+       //
+       while(k<lCount){
+        cc=buff[k];
+        Serial.print(getStringHEX(cc,2) + "|");
+        k++;
+         if ((k>0) && (k % 16==0)) Serial.println("");
+       }//while k
+       //
+       if (k % 16>0) Serial.println("");
+       //     
+    Serial.println(delm0);
+  }
 };//getStreamStrInfo
 
 //------------------------------------------------------------------------------
@@ -2590,25 +3018,63 @@ uint8_t* buff=pStream->getBuffer();
   }//valid
   //
  return valid;
-};
+};//getStreamInfo
+
 
 
 //------------------------------------------------------------------------------
-void getArray8Info(TVT_Net *pVT_Net,uint8_t *ay,uint16_t lCount) {
-uint16_t k=0;
+String getStreamTextInfo(LoopbackStream *pStream,TVT_Net *pVT_Net) {
+boolean  valid=pStream!=NULL;
+uint32_t vSize=0;
+String str="";
+uint8_t* buff=pStream->getBuffer();
+  if (valid) {
+   pStream->setPos(0);
+   vSize=pStream->available();
+    if (vSize>0){ 
+     Serial.println("TEXT STREAM RESULT:");
+      //
+      for (uint32_t i=0; i<vSize;i++) {
+       str+=char(buff[i]);
+       //Serial.print(char(buff[i]));
+      }//for i
+      //
+      if (pVT_Net->inputLineString.length()==0){
+        Serial.println(str);
+        Serial.println("");Serial.println(""); 
+      }
+      //
+     valid=true;
+    
+    } //vSize>0
+  }//valid
+  //
+ return str;
+};//getStreamTextInfo
+
+
+
+//------------------------------------------------------------------------------
+uint16_t getArray8Info(TVT_Net *pVT_Net,uint8_t *ay,uint16_t lCount,boolean info) {
+uint16_t k=0,un=0;
 uint8_t cc=0;
   if ((ay!=NULL) && (lCount>0)){
-    Serial.println(delm0);
+       if (info) Serial.println(delm0);
+       //
        while(k<lCount){
         cc=ay[k];
-        Serial.print(getStringHEX(cc,2) + "|");
+          if (k<2) un+=cc<<8*k;
+          //
+          if (info) Serial.print(getStringHEX(cc,2) + "|");
         k++; 
-         if ((k>0) && (k % 16==0)) Serial.println("");
+         if ((info) && (k>0) && (k % 16==0)) Serial.println("");
        }//while k
        //     
-       if (k % 16!=0) Serial.println("");
-    Serial.println(delm0);
+       if ((info) && (k % 16!=0)) Serial.println("");
+       if (info) Serial.println(delm0);
   }//lCount>0
+  //
+ return un; 
 };//getArray8Info
 
 
@@ -2714,7 +3180,7 @@ void setVTStatusMessage(TVT_Net *pVT_Net,CANMsg *pMsg) {
     //
     //VT_CAN_MsgSend(pVT_Net,pMsg);
   }  
-}    
+};//setVTStatusMessage    
 
 
 //==============================================================================
@@ -2770,7 +3236,7 @@ String str="",ss="\t";
        //
        while (str.length()<12) str+=" ";
        //
-     str+=ss;
+     str+=ss + String(objType) + ss;
      str+=String(x) + ss + String(y) + ss + String(w) + ss +String(h) + ss;
      str+=String(level) + ss + String(selected) + ss + String(kIndex) + ss;
      str+=pVT_Net->VTObjName; 
@@ -2835,13 +3301,9 @@ boolean TEST=false;
 
 
 //------------------------------------------------------------------------------
-String setVTDrawListSoftKey(TVT_Net *pVT_Net) {
-uint16_t lCount=getVTDrawListSize(pVT_Net),objID=0xFFFF,objType=0xFF,i=0,j=0,k=0,m=0;
-int16_t  xx=0,yy=0,ww=0,hh=0;
-String str="",ss="";
-boolean TEST=false;
+void resetKeyButtonInputList(TVT_Net *pVT_Net) {
    #ifdef M5CORE2_MODE
-    for (i=0;i<pVT_Net->butMax;i++) {
+    for (int i=0;i<pVT_Net->butMax;i++) {
      if (pVT_Net->softkey_list[i]!=NULL) {
        pVT_Net->softkey_list[i]->delHandlers();
        delete(pVT_Net->softkey_list[i]); pVT_Net->softkey_list[i]=NULL;
@@ -2855,6 +3317,20 @@ boolean TEST=false;
        delete(pVT_Net->input_list[i]); pVT_Net->input_list[i]=NULL;
      }      
     }//for i
+   #endif
+}//resetKeyButtonInputList   
+
+
+//------------------------------------------------------------------------------
+String setVTDrawListSoftKey(TVT_Net *pVT_Net) {
+uint16_t lCount=getVTDrawListSize(pVT_Net),objID=0xFFFF,objType=0xFF,i=0,j=0,k=0,m=0;
+int16_t  xx=0,yy=0,ww=0,hh=0;
+String str="",ss="";
+boolean TEST=false;
+ButtonColors col = {NODRAW, NODRAW, NODRAW};
+   //
+   #ifdef M5CORE2_MODE
+    resetKeyButtonInputList(pVT_Net);
    #endif
    // 
    //
@@ -2871,7 +3347,7 @@ boolean TEST=false;
           if (objType==5) {
             ss="KEY" + String(j); str+=String(objID) + ","; 
              #ifdef M5CORE2_MODE
-               if (j<pVT_Net->butMax) pVT_Net->softkey_list[j] = new Button(xx,yy-5,ww,hh,false, ss.c_str());
+               if (j<pVT_Net->butMax) pVT_Net->softkey_list[j] = new Button(xx,yy-5,ww,hh,false, ss.c_str(),col,col);
              #endif
             j++; 
           }//objType==5
@@ -2880,7 +3356,7 @@ boolean TEST=false;
           if (objType==6) {
             ss="BUTTON" + String(k); //str+=String(objID) + ",";
              #ifdef M5CORE2_MODE
-               if (k<pVT_Net->butMax)pVT_Net->button_list[k] = new Button(xx,yy-5,ww,hh,false, ss.c_str());
+               if (k<pVT_Net->butMax)pVT_Net->button_list[k] = new Button(xx,yy-5,ww,hh,false, ss.c_str(),col,col);
              #endif
             k++; 
            }//objType==6
@@ -2889,7 +3365,7 @@ boolean TEST=false;
           if (HasInArray(objType,inpAllObjSet)) {
             ss="INPUT" + String(m); //str+=String(objID) + ",";
              #ifdef M5CORE2_MODE
-               if (m<pVT_Net->butMax) pVT_Net->input_list[m] = new Button(xx,yy-1,ww,hh,false, ss.c_str());
+               if (m<pVT_Net->butMax) pVT_Net->input_list[m] = new Button(xx,yy-1,ww,hh,false, ss.c_str(),col,col);
              #endif
             m++; 
            }//objType==inpAllObjSet
@@ -2919,31 +3395,31 @@ uint16_t lCount=getVTDrawListSize(pVT_Net),objID=0xFFFF,objType=0xFF,i=0;
       getVTDrawListValue(pVT_Net,i);
       objID=pVT_Net->streamDraw.readBytesVal(2,0);
       objType=pVT_Net->streamDraw.readBytesVal(1,2);
+           if ((objType==5) || (objType==6) || (HasInArray(objType,inpAllObjSet))) {
+              if (objID==VTObjID){
+                pVT_Net->TFT_KeySelectObjID=0xFFFF;    pVT_Net->TFT_KeySelectObjType=0xFF;
+                pVT_Net->TFT_ButtonSelectObjID=0xFFFF; pVT_Net->TFT_ButtonSelectObjType=0xFF;
+                pVT_Net->TFT_InputSelectObjID=0xFFFF;  pVT_Net->TFT_InputSelectObjType=0xFF;
+                pVT_Net->TFT_KeySelectObjID=0xFFFF;    pVT_Net->TFT_KeySelectObjType=0xFF;
+              }
+           }//objType==5,6,inputs
+           //
            //check KeyObject
            if (objType==5) {
               if (objID==VTObjID){
-                pVT_Net->TFT_KeySelectObjID=0xFFFF;
-                pVT_Net->TFT_ButtonSelectObjID=0xFFFF;
-                pVT_Net->TFT_InputSelectObjID=0xFFFF;
-                pVT_Net->TFT_KeySelectObjID=objID;
+                pVT_Net->TFT_KeySelectObjID=objID;     pVT_Net->TFT_KeySelectObjType=objType;
               }
            }//objType==5
            //
            if (objType==6) {
               if (objID==VTObjID) {
-                pVT_Net->TFT_KeySelectObjID=0xFFFF;
-                pVT_Net->TFT_ButtonSelectObjID=0xFFFF;
-                pVT_Net->TFT_InputSelectObjID=0xFFFF;
-                pVT_Net->TFT_ButtonSelectObjID=objID;
+                pVT_Net->TFT_ButtonSelectObjID=objID; pVT_Net->TFT_ButtonSelectObjType=objType;
               }
            }//objType==6
            //
            if (HasInArray(objType,inpAllObjSet)) {
               if (objID==VTObjID) {
-                pVT_Net->TFT_KeySelectObjID=0xFFFF;
-                pVT_Net->TFT_ButtonSelectObjID=0xFFFF;
-                pVT_Net->TFT_InputSelectObjID=0xFFFF;
-                pVT_Net->TFT_InputSelectObjID=objID;
+                pVT_Net->TFT_InputSelectObjID=objID;  pVT_Net->TFT_InputSelectObjType=objType;
               }
            }//objType==inpAllObjSet
      }//for i
@@ -3101,6 +3577,8 @@ uint16_t lCount=getVTObjectListSize(pVT_Net);
      pVT_Net->streamStr.clear();  
      pVT_Net->streamObj[pVT_Net->listNr].clear();
      pVT_Net->stream_Pool[pVT_Net->listNr].clear();
+     //
+     setVTAuxAssignListClear(pVT_Net);
    }
  getHeapStatus(pVT_Net,51);
  return lCount;
@@ -3305,6 +3783,8 @@ uint8_t  oType=0xFF;
      oID=buff[p++] + (buff[p++]<<8); oType=buff[p++]; 
      len=buff[p++] + (buff[p++]<<8) + (buff[p++]<<16) + (buff[p++]<<24);
        //
+       
+       
        if (typeMode) p=(oType==objID); else p=(oID==objID);
        //
        if (p) {
@@ -3312,15 +3792,68 @@ uint8_t  oType=0xFF;
             pVT_Net->streamStr.clear();
             pVT_Net->streamStr.writeBytes((uint8_t*) buffObj,len,-1,pos);
            }
+           //if (oID==30100){
+            //Serial.println("oType=" + String(oType));
+           //}
+           // 
          pVT_Net->VTObjID=oID;pVT_Net->VTObjType=oType; 
          pVT_Net->VTObjLen=len;pVT_Net->VTObjPos=pos;
          objIdx=i;break;   
-      }
+       }
      pos+=len; 
     }//for i
   }//lCount
  return objIdx; 
 };//getVTObjID
+
+
+//------------------------------------------------------------------------------
+void getVTAuxObjectList(TVT_Net *pVT_Net) {
+uint16_t lCount=getVTObjectListSize(pVT_Net);
+uint16_t i=0,j=0,oID=0xFFFF;
+uint32_t p=0;
+uint8_t* buff;
+uint8_t  oType=0xFF,listNr=pVT_Net->listNr;
+boolean  TEST=true;
+ pVT_Net->VTAuxFuncList.clear(); pVT_Net->VTAuxInpList.clear();
+  //
+  for (j=0;j<listMax-1;j++) {
+   pVT_Net->listNr=j;
+   lCount=getVTObjectListSize(pVT_Net);
+   buff=pVT_Net->stream_Pool[pVT_Net->listNr].getBuffer();
+     // 
+     if (lCount>0) {
+       for (i=0;i<lCount;i++) {
+        p=7*i;
+        oID=buff[p++] + (buff[p++]<<8); oType=buff[p++]; 
+          //auxFunc=31
+          if (oType==gAuxFuncType) {
+           pVT_Net->VTAuxFuncList+=pVT_Net->VT_DST_WS[pVT_Net->listNr];
+           pVT_Net->VTAuxFuncList+=getStringHEX(oID,4);
+           pVT_Net->VTAuxFuncList+="\n";
+          }
+          //auxInp=32
+          if (oType==gAuxInpType) {
+           pVT_Net->VTAuxInpList+=pVT_Net->VT_DST_WS[pVT_Net->listNr];
+           pVT_Net->VTAuxInpList+=getStringHEX(oID,4);
+           pVT_Net->VTAuxInpList+="\n";
+          }
+       }//for i
+     }//lCount
+  }//for j
+  //
+  if (TEST){
+    Serial.println("pVT_Net->VTAuxFuncList");
+    Serial.println(pVT_Net->VTAuxFuncList);
+    Serial.println(delm0);
+    //
+    Serial.println("pVT_Net->VTAuxInpList");
+    Serial.println(pVT_Net->VTAuxInpList);
+    Serial.println(delm0);
+  }
+ pVT_Net->listNr=listNr;
+ 
+};//getVTAuxObjectList
 
 
 
@@ -3337,9 +3870,10 @@ TVT_ViewRect getViewRect(TVT_ViewRect *pViewRect) {
    }
   //
   return vRect;
-};
+};//getViewRect
 
 
+//==============================================================================
 //==============================================================================
 //get WSName from Name 
 String getWSNameFromName(TVT_Net *pVT_Net, String wsName){
@@ -3347,10 +3881,21 @@ String str="",ss="";
     for (int i=0;i<WS_ListCount;i++) {
       ss=pVT_Net->WS_List[i];
       ss.remove(0,3);
-        if (ss==wsName)str=ss;
+        if (ss==wsName) str=ss;
     }
  return str;
-};
+};//getWSNameFromName
+
+
+//==============================================================================
+//get WSName from Name 
+int8_t getWSlistNrFromName(TVT_Net *pVT_Net, String wsName){
+int8_t listNr=-1;
+   for (int i=0;i<listMax;i++) {
+     if (pVT_Net->VT_DST_WS[i]==wsName) listNr=i;
+   }//for i
+ return listNr;
+};//getWSlistNrFromName
 
 
 
@@ -3479,7 +4024,7 @@ TVT_ViewRect vRect = getViewRect(pViewRect);
     //pVT_Net->w = w; pVT_Net->h = h;
   }//valid
  return valid;
-};
+};//PaintActiveSoftKeyMask
 
 
 //==============================================================================
@@ -3502,13 +4047,13 @@ TVT_ViewRect vRect = getViewRect(pViewRect);
     pVT_Net->w = w; pVT_Net->h = h;
   }//valid
   return valid;
-};
+};//PaintActiveMask
 
 
 //==============================================================================
 void setClearScreen(TVT_Net *pVT_Net,boolean listClear) {
 uint16_t i=0,x=0,y=0,w=pVT_Net->TFT_Width,h=pVT_Net->TFT_Height;
-String str="",fntName="";
+String str="",fntName="",ss="";
 uint8_t fntNr=pVT_Net->fntNr, fntSr=pVT_Net->fntSr;
  getHeapStatus(pVT_Net,21);
       //
@@ -3520,7 +4065,8 @@ uint8_t fntNr=pVT_Net->fntNr, fntSr=pVT_Net->fntSr;
      //
      Set_resetViewport(pVT_Net);
      Set_setCursor(pVT_Net,0, 0);
-     Set_fillRect(pVT_Net,x,y,w,h,cl_silver);
+     //Set_fillRect(pVT_Net,x,y,w,h,cl_silver);
+     Set_fillRect(pVT_Net,x,y,w,h,cl_white);
      pVT_Net->infoStr[4]="VT6 ImgMode=" + String(pVT_Net->ImgMode) + " KeyNr=" + String(pVT_Net->TFT_KeyNr);
      str+="Mask=" + String(h) + "x" + String(h) + " Key=";  
      str+=String(pVT_Net->TFT_KeyWidth) + "x" + String(pVT_Net->TFT_KeyHeight);
@@ -3528,13 +4074,31 @@ uint8_t fntNr=pVT_Net->fntNr, fntSr=pVT_Net->fntSr;
      //
      x=h;y=0;w=pVT_Net->TFT_KeyWidth;h=pVT_Net->TFT_KeyHeight;
      pVT_Net->infoStr[1]="Serial:115200";
+      
       for (i=0;i<pVT_Net->TFT_KeyNr;i++) {
          Set_fillRect(pVT_Net,x,i*h,w,h,cl_silver);
+         //Set_fillRect(pVT_Net,x,i*h,w,h,cl_white);
          Set_drawRect(pVT_Net,x,i*h,w,h,cl_blue);
          str=String(i);
          Set_setTextSize(pVT_Net,1);
          Set_drawString(pVT_Net,str,x+10,i*h+10);
-         str+="." + pVT_Net->infoStr[i];
+         str+="."; 
+           if ((i<2) || (i>3)) str+=pVT_Net->infoStr[i];
+           //
+           if (i==2) {
+              if (pVT_Net->ssid_w.length()>0) pVT_Net->infoStr[i]=pVT_Net->ssid_w;
+            str+=pVT_Net->infoStr[i];
+            ss="[" + pVT_Net->ip_w + "]";
+            Set_drawString(pVT_Net,ss,25,i*h+28);
+           }
+           if (i==3) {
+              if (pVT_Net->ssid_a.length()>0) pVT_Net->infoStr[i]=pVT_Net->ssid_a;
+            str+=pVT_Net->infoStr[i];
+            ss=" [" + pVT_Net->ip_a + "]";
+            str+=ss;
+            //Set_drawString(pVT_Net,ss,25,i*h+28);
+           }
+           //
          Set_drawString(pVT_Net,str,10,i*h+10);
       }//for i
      //
@@ -3569,14 +4133,14 @@ boolean valid=false;
    }
  Set_resetViewport(pVT_Net);
    //
-   if ((push) && (pVT_Net->VTPushStop==0)) {
+   if ((push) && (pVT_Net->VTPageSelect==0)) {
     paintSelectionFrame(pVT_Net); 
      if (pVT_Net->ImgMode) pVT_Net->ImgTFT.pushSprite(0,0);
    } 
  pVT_Net->VTPoolRefresh=false; pVT_Net->VTPoolClear=false;
  //
  return valid; 
-};
+};//VTPoolDataRefreshDirect
 
 
 //==============================================================================
@@ -3600,7 +4164,7 @@ TVT_ViewRect VT_ViewRect;
   }//valid
   //
  return valid;
-};
+};//getPoolObjectPaint
 
 //==============================================================================
 boolean removeClassObj(TVT_Net *pVT_Net,int16_t objIdx) {
@@ -3609,7 +4173,7 @@ boolean  valid=(objIdx>=0);
    getVTObjectListRemove(pVT_Net,objIdx);
   }//valid
 return valid;
-}  
+};//removeClassObj 
 
 
 
@@ -4259,10 +4823,25 @@ int16_t  objIdx=-1;
     //
   }//valid
  return valid; 
-};
+};//runClassObj
 
 
 //=============================================================================
+//=============================================================================
+String getHexCharacterString(String str,boolean reverse) {
+String tStr="";
+uint16_t len=str.length(),j=0;
+ if (len>0){
+   for (int i=0;i<len;i++) {
+    j=i;
+      if (reverse) j=len-1-i;
+    tStr+=getStringHEX(char(str[j]),2);
+   }//for i
+ }//>0 
+ return tStr;
+};//getHexCharacterString
+
+
 //=============================================================================
 void hexCharacterStringToBytes(byte *byteArray, const char *hexString) {
 String sStr="",tStr="",str=hexString;
@@ -4296,12 +4875,12 @@ TVTListValues setVTListValues(String listAttr) {
     }//indexOf
   }//for i
   return listVal;
-};
+};//setVTListValues
 
 //------------------------------------------------------------------------------
 //VTAttrAID[0].numAID=0;  VTAttrAID[0].byteAID=1; VTAttrAID[0].typeAID=0; VTAttrAID[0].nameAID="VTObjType";VTAttrAID[0].valueAID=String(VTObjType);
 uint32_t getVTObjectAttributeInt32(String nameAttr, TVT_Net *pVT_Net) {
-uint8_t err = 0x01;
+uint8_t err = 0x01,len=0;
 uint16_t aIdx=2;//offset VTObjID 
 uint32_t nn=0,i=0,j=0;
 String attrStr="";
@@ -4312,6 +4891,14 @@ uint8_t* buff=pVT_Net->streamStr.getBuffer();
           for (j=0;j<nn;j++) attrStr+=char(buff[aIdx+j]);
         break; 
        }
+       //
+       //check inputstring VTLength for attribute VTEnabled
+       if ((pVT_Net->VTObjType==8) && (i==9)) {
+        len=buff[aIdx]; aIdx+=len; 
+        //Serial.println(pVT_Net->VTAttrAID[i].nameAID);
+        //Serial.println(len);
+       }
+       //    
      aIdx+=pVT_Net->VTAttrAID[i].byteAID;
    } //for i
  pVT_Net->aIdx=aIdx; nn=0;  
@@ -4320,7 +4907,7 @@ uint8_t* buff=pVT_Net->streamStr.getBuffer();
    }
    // 
  return nn;  
-};
+};//getVTObjectAttributeInt32
 
 
 //------------------------------------------------------------------------------
@@ -4346,7 +4933,7 @@ int16_t x0=x, y0=y, x1=x+w, y1=y+h;
   //
   Set_resetViewport(pVT_Net);
   Set_setViewport(pVT_Net,pViewRect->viewX, pViewRect->viewY, pViewRect->viewW, pViewRect->viewH);
-};
+};//getViewport
 
 
 //------------------------------------------------------------------------------
@@ -4368,7 +4955,7 @@ boolean  valid=((lCount>0) && (objIdx>=0) && (objIdx<lCount)), TEST=false;
   }//valid
   //
  return valid; 
-};
+};//SetObjPaintObjToRef
 
 
 //------------------------------------------------------------------------------
@@ -4481,7 +5068,7 @@ TVT_ViewRect vvRect = getViewRect(pViewRect);
          } //nn>0
    }//valid
  return valid;
-};
+};//getVTObjectsPaint
 
 
 //==============================================================================
@@ -4498,13 +5085,13 @@ uint8_t* buff;
     if (pVT_Net->SetLabel==2){
       String str=String(pVT_Net->VTObjID);w=8*str.length();
       Set_resetViewport(pVT_Net);
-      Set_fillRect(pVT_Net,x,y,w,h,(uint8_t)TFT_LIGHTGREY);
+      Set_fillRect(pVT_Net,x,y,w,h,TFT_LIGHTGREY);
       Set_setTextColor(pVT_Net,TFT_BLACK);
       Set_setTextDatum(pVT_Net,0);
       Set_drawString(pVT_Net,str,x+1,y+1);
     }//SetLabel
   }//lCount>0
-};
+};//getVTObjectFromList
 
 
 
@@ -4521,7 +5108,7 @@ boolean TVTObject::getMsgToAttr(uint8_t cFunc, CANMsg *pMsg, TVT_Net *pVT_Net) {
     valid = true;
   }
   return valid;
-};
+};//TVTObject::getMsgToAttr
 
 
 //------------------------------------------------------------------------------
@@ -4542,7 +5129,7 @@ uint8_t nn=0,i=0,bb[2]={0,0};
      objID=bb[0] + (bb[1]<<8);
    }
  return objID;
-};
+};//TVTObject::getVTItemsNumber
 
 
 
@@ -4553,6 +5140,7 @@ String str="";
 uint16_t objNr=getVTDrawListSize(pVT_Net);
 uint8_t selected=0x00,kIndex=0xFF;
   pVT_Net->streamDraw.clear();
+  //objID,objType,absBounds,Parent,level,selected,index
   pVT_Net->streamDraw.writeBytesVal(VTObjID,2);
   pVT_Net->streamDraw.writeBytesVal(VTObjType,1);
     if (VTObjType==5) kIndex=pVT_Net->VTKeyIndex;    //Key
@@ -4566,8 +5154,13 @@ uint8_t selected=0x00,kIndex=0xFF;
   //
   pVT_Net->streamDraw.writeBytesVal(pVT_Net->VTParentReference,2);
   pVT_Net->streamDraw.writeBytesVal(pVT_Net->level,1);
+  //change
   pVT_Net->streamDraw.writeBytesVal(selected,1);
+  //TEST
+  //pVT_Net->streamDraw.writeBytesVal(enabled,1);
+  //
   pVT_Net->streamDraw.writeBytesVal(kIndex,1);
+  
   //getStreamDrawInfo(pVT_Net);
   //Sum=16
     if (enabled) {
@@ -4578,7 +5171,7 @@ uint8_t selected=0x00,kIndex=0xFF;
     //
   pVT_Net->VTParentReference=pVT_Net->VTObjID;
   pVT_Net->VTParentType=pVT_Net->VTObjType;
-};
+};//TVTObject::getVTDrawListAddObj
 
 
 //------------------------------------------------------------------------------
@@ -4605,14 +5198,14 @@ int8_t sel = -1;
  pVT_Net->VTDefaultColour=false;
  //
  return sel;
-}
+};//TVTObject::SetSelectState
 
 
 //------------------------------------------------------------------------------
 uint16_t TVTObject::setVTEvents(boolean writeMode) {
 //TODO
   return 0;
-};
+};//TVTObject::setVTEvents
 
 
 //------------------------------------------------------------------------------
@@ -4627,7 +5220,7 @@ uint8_t bMax=1;
     pVT_Net->streamStr.writeBytes((uint8_t*) buff,bMax*nn);
   }
  return valid;
-};
+};//TVTObject::getVTColourItems
 
 
 //------------------------------------------------------------------------------
@@ -4639,7 +5232,7 @@ boolean valid=((pStream->available()) && (nn>0));
     pVT_Net->streamStr.writeBytes((uint8_t*) buff,nn);
   }
  return valid;
-};
+};//TVTObject::getVTString
 
 
 //------------------------------------------------------------------------------
@@ -4652,7 +5245,7 @@ uint8_t kk=7;
     pVT_Net->streamStr.writeBytes((uint8_t*) buff,kk*nn);
   }
  return valid;
-};
+};//TVTObject::getVTLabels
 
 
 //------------------------------------------------------------------------------
@@ -4665,7 +5258,7 @@ uint8_t kk=6;
     pVT_Net->streamStr.writeBytes((uint8_t*) buff,kk*nn);
   }
  return valid;
-};
+};//TVTObject::getVTObjects
 
 
 //------------------------------------------------------------------------------
@@ -4678,21 +5271,26 @@ uint8_t kk=2;
     pVT_Net->streamStr.writeBytes((uint8_t*) buff,kk*nn);
   }
  return valid;
-};
+};//TVTObject::getVTItems
 
 
 //------------------------------------------------------------------------------
+//check ExtendedMacroObjects
 boolean TVTObject::getVTMacros(TVT_Net *pVT_Net,uint8_t nn, LoopbackStream *pStream) {
 boolean valid=((pStream->available()) && (nn>0));
-uint8_t  eventID = pStream->peek(),kk=2;
+uint8_t  buff[4],eventID=0xFF,kk=2,i=0;
   if (valid) {
-      if (eventID==0xFF) kk=4;   
-    uint8_t buff[kk*nn];
-    pStream->readBytes(buff,kk*nn);
-    pVT_Net->streamStr.writeBytes((uint8_t*) buff,kk*nn);
+    for (i=0;i<nn;i++){
+      if (pStream->available()){
+       eventID = pStream->peek();kk=2;
+         if (eventID==0xFF) kk=4;   
+       pStream->readBytes(buff,kk);
+       pVT_Net->streamStr.writeBytes((uint8_t*) buff,kk);
+      } else break;
+    }//for i
   }
  return valid;
-};
+};//TVTObject::getVTMacros
 
 
 //------------------------------------------------------------------------------
@@ -4705,7 +5303,7 @@ uint8_t kk=4;
     pVT_Net->streamStr.writeBytes((uint8_t*) buff,kk*nn);
   }
  return nn;
-};
+};//TVTObject::getVTPoints
 
 
 //------------------------------------------------------------------------------
@@ -4720,7 +5318,7 @@ uint8_t kk=2,bMax=1;
     pVT_Net->streamStr.writeBytes((uint8_t*) buff,kk*nn);
   }
  return valid;
-};
+};//TVTObject::getVTLanguages
 
 
 
@@ -4741,7 +5339,7 @@ uint8_t kk=0,bb=0;
     }//for i
   } //valid
  return valid;
-};
+};//TVTObject::getVTCodePlanes
 
 
 //------------------------------------------------------------------------------
@@ -4760,7 +5358,7 @@ uint8_t  bb=0;
     pVT_Net->streamStr.writeBytes((uint8_t*) buff,nn);
   }
  return nn;
-};
+};//TVTObject::getVTCommands
 
 
 //------------------------------------------------------------------------------
@@ -4791,7 +5389,7 @@ uint8_t TVTObject::setChangeAIDValue(uint8_t attrID, uint32_t attr, TVT_Net *pVT
     }//for i
   }//nr>0
   return err;
-};
+};//TVTObject::setChangeAIDValue
 
 
 //------------------------------------------------------------------------------
@@ -4873,195 +5471,11 @@ int16_t x = pVT_Net->x, y = pVT_Net->y, xx = x, yy = y, i = pVT_Net->fntLine;
 boolean smFont=true;
   //check uniCode
   if (pVT_Net->uniCode) {fntType=0;len=len/2;}
+  //Check font on SD or SPIFFS
+  if (!Set_smFont(pVT_Net)) smFont=false;
   //
   for (k = 0; k < len; k++) {
-    //check uniCode
-    if (pVT_Net->uniCode)  {
-       if (2*k+1<2*len) {
-         un=char(str[2*k]);
-         un+=char(str[2*k+1])<<8;
-         //Serial.println(String(un,HEX));
-       }// else break;
-    
-    } else un=char(str[k]);
-    //
-    switch (fntType) {
-      //Latin 9
-      case 1:
-        switch (un) {
-          case 0xA4: un = 0x20AC; break;
-          case 0xA6: un = 0x0160; break;
-          case 0xA8: un = 0x0161; break;
-          case 0xB4: un = 0x017D; break;
-          case 0xB8: un = 0x017E; break;
-          case 0xBC: un = 0x0152; break;
-          case 0xBD: un = 0x0153; break;
-          case 0xBE: un = 0x0178; break;
-        }
-        break;
-      //MiddleEurope
-      case 2:
-        switch (un) {
-          case 0xA1: un = 0x0104; break;
-          case 0xA2: un = 0x02D8; break;
-          case 0xA3: un = 0x0141; break;
-          case 0xA5: un = 0x013D; break;
-          case 0xA6: un = 0x015A; break;
-          case 0xA9: un = 0x0160; break;
-          case 0xAA: un = 0x015E; break;
-          case 0xAB: un = 0x0164; break;
-          case 0xAC: un = 0x0179; break;
-          case 0xAD: un = 0x00A0; break;
-          case 0xAE: un = 0x017D; break;
-          case 0xAF: un = 0x017B; break;
-          //
-          case 0xB1: un = 0x0105; break;
-          case 0xB2: un = 0x02DB; break;
-          case 0xB3: un = 0x0142; break;
-          case 0xB5: un = 0x013E; break;
-          case 0xB6: un = 0x015B; break;
-          case 0xB7: un = 0x02C7; break;
-          case 0xB9: un = 0x0161; break;
-          case 0xBA: un = 0x015F; break;
-          case 0xBB: un = 0x0165; break;
-          case 0xBC: un = 0x017A; break;
-          case 0xBD: un = 0x02DD; break;
-          //
-          case 0xBE: un = 0x017E; break;
-          case 0xBF: un = 0x017C; break;
-          //
-          case 0xC0: un = 0x0154; break;
-          case 0xC3: un = 0x0102; break;
-          case 0xC5: un = 0x0139; break;
-          case 0xC6: un = 0x0106; break;
-          case 0xC8: un = 0x010C; break;
-          case 0xCA: un = 0x0118; break;
-          case 0xCC: un = 0x011A; break;
-          case 0xCF: un = 0x010E; break;
-          //
-          case 0xD0: un = 0x0110; break;
-          case 0xD1: un = 0x0143; break;
-          case 0xD2: un = 0x0147; break;
-          case 0xD5: un = 0x0150; break;
-          case 0xD8: un = 0x0158; break;
-          case 0xD9: un = 0x016E; break;
-          case 0xDB: un = 0x0170; break;
-          case 0xDE: un = 0x0162; break;
-          //
-          case 0xE0: un = 0x0155; break;
-          case 0xE3: un = 0x0103; break;
-          case 0xE5: un = 0x013A; break;
-          case 0xE6: un = 0x0107; break;
-          case 0xE8: un = 0x010D; break;
-          case 0xEA: un = 0x0119; break;
-          case 0xEC: un = 0x011B; break;
-          case 0xEF: un = 0x010F; break;
-          //
-          case 0xF0: un = 0x0111; break;
-          case 0xF1: un = 0x0144; break;
-          case 0xF2: un = 0x0148; break;
-          case 0xF5: un = 0x0151; break;
-          case 0xF8: un = 0x0159; break;
-          case 0xF9: un = 0x016F; break;
-          case 0xFB: un = 0x0171; break;
-          case 0xFE: un = 0x0163; break;
-          case 0xFF: un = 0x02D9; break;
-        }
-        break;
-
-      //Baltic EastEurope
-      case 4:
-        switch (un) {
-          case 0xA1: un = 0x0104; break;
-          case 0xA2: un = 0x0138; break;
-          case 0xA3: un = 0x0156; break;
-          case 0xA5: un = 0x0128; break;
-          case 0xA6: un = 0x013B; break;
-          case 0xA9: un = 0x0160; break;
-          case 0xAA: un = 0x0114; break;
-          case 0xAB: un = 0x0122; break;
-          case 0xAC: un = 0x0166; break;
-          case 0xAD: un = 0x00A0; break;
-          case 0xAE: un = 0x017D; break;
-          //
-          case 0xB1: un = 0x0105; break;
-          case 0xB2: un = 0x02DB; break;
-          case 0xB3: un = 0x0157; break;
-          case 0xB5: un = 0x0129; break;
-          case 0xB6: un = 0x013C; break;
-          case 0xB7: un = 0x02C7; break;
-          case 0xB9: un = 0x0161; break;
-          case 0xBA: un = 0x011B; break;
-          case 0xBB: un = 0x0123; break;
-          case 0xBC: un = 0x0167; break;
-          case 0xBD: un = 0x014A; break;
-          case 0xBE: un = 0x017E; break;
-          case 0xBF: un = 0x014B; break;
-          //
-          case 0xC0: un = 0x0100; break;
-          case 0xC3: un = 0x0102; break;
-          case 0xC7: un = 0x012E; break;
-          case 0xC8: un = 0x010C; break;
-          case 0xCA: un = 0x0118; break;
-          case 0xCC: un = 0x011A; break;
-          case 0xCF: un = 0x0128; break;
-          //
-          case 0xD0: un = 0x0110; break;
-          case 0xD1: un = 0x0145; break;
-          case 0xD2: un = 0x014C; break;
-          case 0xD3: un = 0x0136; break;
-          case 0xD5: un = 0x0150; break;
-          case 0xD9: un = 0x0172; break;
-          case 0xDD: un = 0x0168; break;
-          case 0xDE: un = 0x016A; break;
-          //
-          case 0xE0: un = 0x0101; break;
-          case 0xE3: un = 0x0103; break;
-          case 0xE7: un = 0x012F; break;
-          case 0xE8: un = 0x010D; break;
-          case 0xEA: un = 0x0119; break;
-          case 0xEC: un = 0x011B; break;
-          case 0xEF: un = 0x0129; break;
-          //
-          case 0xF0: un = 0x0111; break;
-          case 0xF1: un = 0x0146; break;
-          case 0xF2: un = 0x014D; break;
-          case 0xF3: un = 0x0137; break;
-          case 0xF5: un = 0x0151; break;
-          case 0xF9: un = 0x0173; break;
-          case 0xFD: un = 0x0169; break;
-          case 0xFE: un = 0x016B; break;
-          case 0xFF: un = 0x02D9; break;
-        }
-        break;
-
-      //Cyrillic
-      case 5:
-        switch (un) {
-          case 0xF0: un = 0x2116; break;
-          case 0xFD: un = 0x00A7; break;
-          //
-          default: if (un >= 0xA0) un = 0x400 + (un - 0xA0);
-            break;
-        }
-        break;
-      //Greek
-      case 7:
-        switch (un) {
-          case 0xA1: un = 0x2018; break;
-          case 0xA2: un = 0x2019; break;
-          case 0xA4: un = 0x20AC; break;
-          case 0xA5: un = 0x007F; break;
-          case 0xAA: un = 0x007E; break;
-          case 0xAE: un = 0x0037; break;
-          //
-          default: if (un >= 0xB4) un = 0x384 + (un - 0xB4);
-            break;
-        }
-        break;
-    }//switch fntType 
-    //
-    //
+    un=getUniCodeFontIndex(str,k,pVT_Net);  
     pVT_Net->tft.getUnicodeIndex(un, &index);
       //
       tw = 0; 
@@ -5588,7 +6002,7 @@ uint8_t err = 0x01,posMode=0;
 uint16_t aIdx=2;//offset VTObjID 
 uint32_t nn=0,i=0,j=0,sSize=0,pPos=0, w=0,h=0,nw=0,nh=0;
 int16_t xx=0,yy=0,len=0;
-boolean change=false,setAID=true,TEST=false;
+boolean change=false,sAID=true,TEST=false;
 String attrStr="",str="";
 uint8_t* buff;
 TVTObjIDPoints points;
@@ -5801,7 +6215,7 @@ TVTObjIDPoints points;
             //
             if (j==posMode)   {
              nameAttr=VTAttrAID[i].nameAID;
-             setAID=pVT_Net->VT_ChangeAttr;pVT_Net->VT_ChangeAttr=false;
+             sAID=pVT_Net->VT_ChangeAttr;pVT_Net->VT_ChangeAttr=false;
              err=0;
              break;  
             }
@@ -5810,10 +6224,11 @@ TVTObjIDPoints points;
       }//VT_AID
       //
       //TEST
-      // Serial.println(nameAttr);
-      // getStringHEXInfo(newValueAttr);    
-      
+      //getStringHEXInfo(newValueAttr);  
+      //getStreamStrInfo(pVT_Net);  
+      //
       for (i=0;i<VT_AID_Nr;i++) {
+        //
         if (VTAttrAID[i].nameAID==nameAttr) {
          attrStr=getVTObjectAttributeDirect(nameAttr,pVT_Net);
          TEST=false;
@@ -5829,19 +6244,29 @@ TVTObjIDPoints points;
           //
           if ((newValueAttr!=attrStr) || (VTAttrAID[i].typeAID==0)){
             buff=pVT_Net->streamStr.getBuffer();
+             //
              for (j=0;j<nn;j++) {
               pVT_Net->VT_AttrValue+=char(attrStr[j])<<8*j;             
               //TEST
               //getStringHEXInfo(newValueAttr);
-               if (setAID) buff[aIdx+j]=char(newValueAttr[j]);
-             }
+              //Serial.println(aIdx+j);
+               if (sAID) buff[aIdx+j]=char(newValueAttr[j]);
+             }//for j
              //
-             if (setAID) {
-               //TEST
+             if (sAID) {
+                 //TEST
                  if (nameAttr=="VTOptions"){
                   //getStreamStrInfo(pVT_Net);
                   //Serial.println(pVT_Net->objNr);
                  }
+                 if (nameAttr=="VTEnabled"){
+                  //getStreamStrInfo(pVT_Net);
+                  //Serial.println(pVT_Net->objNr);
+                  //Serial.println(pVT_Net->VTObjID);
+                  //Serial.println(pVT_Net->VTObjType);
+                 }
+                 //
+               //Serial.println(pVT_Net->objNr);
                //getStreamStrInfo(pVT_Net); 
                setVTObjectListValue(pVT_Net);
                //TEST
@@ -5849,9 +6274,23 @@ TVTObjIDPoints points;
                pVT_Net->VT_ChangeAttr=true;
              }
           }//change
+         //getStreamStrInfo(pVT_Net);
          err=0x00;
          break; 
         }
+        //
+        //check input string VTLength for attribute=VTEnabled
+        if ((pVT_Net->VTObjType==8) && (i==9)){
+         nn=pVT_Net->streamStr.readBytesVal(1,aIdx);aIdx+=nn;
+           //TEST
+           if (TEST) {
+            Serial.println(VTAttrAID[i].nameAID);
+            Serial.println(nn); 
+            Serial.println(aIdx);
+            getStreamStrInfo(pVT_Net);
+           } 
+        }
+        //
        aIdx+=VTAttrAID[i].byteAID;
       } //for i
    return err;   
@@ -5948,7 +6387,7 @@ int16_t  refIdx=getVTObjID(pVT_Net,objID);
 uint16_t len=8;
 boolean  TEST=false;
      if (refIdx>=0) {
-       //getStreamStrInfo(pVT_Net);
+       getStreamStrInfo(pVT_Net);
        pVT_Net->streamStr.removeBytes(0,5);
        //getStreamStrInfo(pVT_Net);
          while (pVT_Net->streamStr.available()>=8){
@@ -5964,13 +6403,24 @@ boolean  TEST=false;
                len=pVT_Net->streamStr.readBytesVal(2,len);
                len+=5;
              }
+             //ExecuteMacro
+             if (bb==0xBE) {
+               Serial.println("ExecuteMacro");
+               //pVT_Net,pVT_Net->stream_Cmd[pVT_Net->listNr].clear();
+             }
+             //ExecuteExtendedMacro
+             if (bb==0xBC) {
+               Serial.println("ExecuteExtendedMacro");
+               //pVT_Net,pVT_Net->stream_Cmd[pVT_Net->listNr].clear();
+             }
              //
            uint8_t mDATA[len];
            pVT_Net->streamStr.readBytes((uint8_t*)mDATA,len); 
            pVT_Net->stream_Cmd[pVT_Net->listNr].write(len);
            pVT_Net->stream_Cmd[pVT_Net->listNr].writeBytes((uint8_t*)mDATA,len);
-         }
+         }//while
          //
+        TEST=true; 
          if (TEST) {
           Serial.println(delm0);
           Serial.println("stream_Cmd");
@@ -5980,17 +6430,21 @@ boolean  TEST=false;
      } else error=0x01; 
      //
  return error;   
-};
+};//runMacroCommands
 
 //------------------------------------------------------------------------------
 String getVTMacrosList(uint8_t eventID,TVT_Net *pVT_Net) {
 String str="";
 uint16_t objID=0xFFFF,eID=0xFF;
 uint8_t mCount=pVT_Net->nameAttr.toInt();
+boolean TEST=false;
  pVT_Net->nameAttr="";
- //TEST
- //Serial.println("mCount=" + String(mCount));
- //getStreamStrInfo(pVT_Net);
+  //TEST
+  if (TEST){ 
+    Serial.println("mCount=" + String(mCount));
+    getStreamStrInfo(pVT_Net);
+  }
+  //
   while ((mCount>0) && (pVT_Net->streamStr.available())) {
    mCount--; objID=pVT_Net->streamStr.readBytesVal(1);
     if (objID==0xFF) {
@@ -6003,33 +6457,47 @@ uint8_t mCount=pVT_Net->nameAttr.toInt();
     }
     //
     //TEST
-    //Serial.println(eID);
-    //Serial.println(eventID);
-    //Serial.println(delm0);
+    if (TEST){
+      Serial.println(eID);
+      Serial.println(eventID);
+      Serial.println(objID);
+      Serial.println(delm0);
+    }
+    //
     if (eID==eventID) {
       str+=char((objID>>0) & 0xFF);
       str+=char((objID>>8) & 0xFF);
     }
   }//while
+  //
+  if (TEST){ 
+   getStringHEXInfo(str,true);
+   Serial.println(delm0);
+  } 
  return str;
-};
+};//getVTMacrosList
 
 //------------------------------------------------------------------------------
 boolean getVTMacrosListEvents(TVT_Net *pVT_Net,uint16_t objID,uint8_t eventID){
 String str="";
 uint32_t nn=0;
 int16_t refIdx=getVTObjID(pVT_Net,objID);
+boolean TEST=false;
     //
-    //TEST
-    //Serial.println(eventID);
-    //Serial.println(objID);
-     
+     //TEST
+     if (TEST){
+       Serial.println(eventID);
+       Serial.println(objID);
+     }
+     //
      if (refIdx>=0) {
        pVT_Net->nameAttr="VTMacros";       
-       //TEST
-       //getStreamStrInfo(pVT_Net);
-       //Serial.println(pVT_Net->VTObjID);
-       //Serial.println(pVT_Net->VTObjType);
+         //TEST
+         if (TEST){
+          getStreamStrInfo(pVT_Net);
+          Serial.println(pVT_Net->VTObjID);
+          Serial.println(pVT_Net->VTObjType);
+         }
        runClassObj(pVT_Net,NULL,NULL);
        
        nn=pVT_Net->newValueAttr.toInt();
@@ -6049,15 +6517,27 @@ int16_t refIdx=getVTObjID(pVT_Net,objID);
             while (str.length()>=2) {
              objID=char(str[0]) + (char(str[1])<<8);
              str.remove(0,2);
-             //TEST
-             //Serial.println("Macro_objID=" + String(objID));
+               //TEST
+               if (TEST) Serial.println("Macro_objID=" + String(objID));
              //run Macros in array
              runMacroCommands(pVT_Net,objID);
             }//while
          }//nn>0  
      } //refIdx  
    return (nn>0); 
-};
+};//getVTMacrosListEvents
+
+
+//==============================================================================
+//Auxiliary procedure
+//==============================================================================
+void setVTAuxAssignListClear(TVT_Net *pVT_Net) {
+  if (pVT_Net->listNr<listMax-1) {
+    pVT_Net->VTAuxAssignList.clear();
+    pVT_Net->VTPoolRefresh=true;
+  }
+};//setVTAuxAssignListClear
+
 
 
 //==============================================================================

@@ -70,10 +70,9 @@ class TVTMask :public TVTObjectBgCol {
     String VTObjects="";//TVTObjectPointerList;
     String VTMacros=""; //TVTMacroList;
     //procedure
-    // by JG: return boolean
-    virtual boolean  PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){return false;};
-    virtual boolean  readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
-    virtual boolean  writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
+    virtual boolean  PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){};
+    virtual boolean  readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){};
+    virtual boolean  writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){};
     //
     boolean getSoftKeyMask(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net);
     boolean PaintObjToMask(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net);

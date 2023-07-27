@@ -14,264 +14,94 @@
 #include <PNGdec.h>
 //
 //==============================================================================
-#define M5STACK_MODE
-//#define M5CORE2_MODE
+//global define
+//==============================================================================
+#define MSTACK_MODE
+//==============================================================================
+//#define M5STACK_MODE
+#define M5CORE2_MODE
+//
+//#define COM_MODUL_MODE
+//
+#ifndef COM_MODUL_MODE
+ #define COM_CAN_MODE
+#endif //not COM_MODUL_MODE
+//
+#ifdef COM_CAN_MODE
+  // by JG COM_CAN_MODE_B: interner CAN PIN26 u. Pin36
+  //#define COM_CAN_MODE_A
+  #define COM_CAN_MODE_B
+  //#define COM_CAN_MODE_C
+#endif //COM_CAN_MODE
 //
 //
+//==============================================================================
+//==============================================================================
 //
 #ifdef M5STACK_MODE
- #define COM_MODUL_MODE
  #include "M5Stack.h"
 #endif
 
 #ifdef M5CORE2_MODE
-  #include "M5Core2.h"
+ #include "M5Core2.h"
 #endif
 //
 //==============================================================================
-#ifdef COM_MODUL_MODE
+#ifdef COM_CAN_MODE 
+ //Port A
+ #ifdef COM_CAN_MODE_A 
+  #define CAN_TX GPIO_NUM_32
+  #define CAN_RX GPIO_NUM_33
+ #endif
+ //Port B
+ #ifdef COM_CAN_MODE_B 
+  #define CAN_TX GPIO_NUM_26
+  #define CAN_RX GPIO_NUM_36
+ #endif
+ //Port C
+ #ifdef COM_CAN_MODE_C 
+  #define CAN_TX GPIO_NUM_16
+  #define CAN_RX GPIO_NUM_17
+ #endif
+ //
+#else
+ //
+ #ifdef COM_MODUL_MODE
   //internal communication modul
   #ifdef M5STACK_MODE
     #define CAN0_INT 15  // Set INT to internal pin 15 Int
-    #define CAN0_CS 12   // Set CS to internal pin 12 Int
+    #define CAN0_CS 12   // Set CS  to internal pin 12 Int
   #endif
   //
   #ifdef M5CORE2_MODE
     #define CAN0_INT 2   // Set INT to internal pin 2 Int
-    #define CAN0_CS 27   // Set CS to internal pin 27 Int
+    #define CAN0_CS 27   // Set CS  to internal pin 27 Int
   #endif
-#else
+ #else
   //external MCP2515
   #ifdef M5STACK_MODE
     #define CAN0_INT 5  // Set INT pin 5
-    #define CAN0_CS 2   // Set CS pin 2
+    #define CAN0_CS 2   // Set CS  pin 2
   #endif
   //
   #ifdef M5CORE2_MODE
     #define CAN0_INT 19  // Set INT pin 19
-    #define CAN0_CS 27   // Set CS pin 27
+    #define CAN0_CS 27   // Set CS  pin 27
   #endif
-#endif
-
-
-
-//==============================================================================
-//Structure VTDateTime
-//==============================================================================
-typedef struct {
-  uint8_t Hours;
-  uint8_t Minutes;
-  uint8_t Seconds;
-  uint8_t HoursOffs;
-  uint8_t MinutesOffs;
-} VT_TimeTypeDef;
+ #endif //COM_MODUL_MODE
+#endif //COM_CAN_MODE
 
 //==============================================================================
-typedef struct {
-  uint8_t WeekDay;
-  uint8_t Date;
-  uint8_t Month;
-  uint16_t Year;
-} VT_DateTypeDef;
-
-
 //==============================================================================
-typedef struct i2cDevice {
-  i2cDevice() {
-    Name = "";
-    addr = 0;
-    nextPtr = nullptr;
-  };
-  String Name;
-  uint8_t addr;
-  struct i2cDevice *nextPtr;
-} i2cDevice_t;
-
-
-
-//==============================================================================
-//Class TVTDateTime
-//==============================================================================
-class TVTDateTime {
- private:
-  uint8_t trdata[7];
-  //
-  void Bcd2asc(void);
-  uint8_t Bcd2ToByte(uint8_t Value);
-  uint8_t ByteToBcd2(uint8_t Value);
-  void Str2Time(void);
-  void DataMask();
-  
- public:
-  uint8_t Second;
-  uint8_t Minute;
-  uint8_t Hour;
-  uint8_t Week;
-  uint8_t Day;
-  uint8_t Month;
-  uint8_t Year;
-  uint8_t DateString[9];
-  uint8_t TimeString[9];
-
-  uint8_t asc[14];
-
-  //void begin(void);
-  //void GetBm8563Time(void);
-
-  int SetTime(VT_TimeTypeDef* VT_TimeStruct);
-  int SetDate(VT_DateTypeDef* VT_DateStruct);
-
-  void GetTime(VT_TimeTypeDef* VT_TimeStruct);
-  void GetDate(VT_DateTypeDef* VT_DateStruct);
-};
-
-
-
-//==============================================================================
-//LoopbackStream
-//==============================================================================
-class LoopbackStream {
-  uint8_t *buffer=NULL;
-  uint32_t buffer_size=0;
-  uint32_t pos=0, size=0;
-public:
-  uint32_t setNewBufferSize(uint32_t bSize, boolean psRAM=true);
-  uint32_t clear(boolean psRAM=true);
-  uint8_t* getBuffer();
-  uint32_t getBufferSize();
-  uint32_t available();
-  uint32_t setPos(uint32_t bPos);
-  uint32_t getPos();
-  uint32_t setSize(uint32_t bSize);
-  uint32_t getSize();
-  //
-  uint32_t writeBytes(uint8_t *buff,uint32_t bSize,int32_t bPos=-1,uint32_t buffPos=0);
-  uint32_t writeBytesVal(uint32_t dVal,uint32_t bSize,int32_t bPos=-1);
-  //
-  uint32_t removeBytes(uint32_t pPos0,uint32_t pPos1);
-  
-  uint32_t readBytes(uint8_t *buff,uint32_t bSize,int32_t bPos=-1);
-  uint32_t readBytesVal(uint32_t bSize,int32_t bPos=-1);
-  String   readBytesString(uint32_t bSize,int32_t bPos=-1);
-  //
-  uint32_t write(uint8_t b);
-  uint8_t  read();
-  uint8_t  peek();
-};
-
-
-
-//==============================================================================
-//Definition CAN message
-//==============================================================================
-class CANMsg {
-public:
-   long unsigned int ID=0;               // CAN ID
-   uint8_t   LEN=8;                      // Data Length Code
-   uint8_t   DATA[256]={};               // Data array
-   uint8_t   MSGTYPE=0;                  // Remote request flag
-   uint8_t   MSG_TX=0;                   // TX trnsmit flag
-   uint32_t  TimeStamp=millis();         // CAN Timestamp
-   char      msgString[128];
-
-};
-
-
-//==============================================================================
-class TVTPixelXY {
-public:
- int16_t  pixelX=0;
- int16_t  pixelY=0;
- int16_t  pixelXOffs=0;
- int16_t  pixelYOffs=0;
- uint16_t pixelXX=0;
- uint16_t pixelYY=0;
- uint16_t pixelW=0;
- uint16_t pixelH=0;
- uint16_t pixelN=0;
- uint16_t pixelS=0;
- uint8_t  pixelC=0;
- uint8_t  pixelFormat=0;
- float    pixelXF=1.000;
- float    pixelYF=1.000;
- boolean  flash=false;
- boolean  swap=false;
-};
-
-
-//==============================================================================
-class TVTTouchXY {
-public:
- int16_t  x=0;
- int16_t  y=0;
-};
-
-
-//==============================================================================
-class TVTAttrValue {
-public:
- uint32_t attrValue[3]={0,0,0};
- String   attrName[3]={"VTLineColour","VTLineWidth","VTLineArt"};
-};
-
-//==============================================================================
-class TVTColorAlpha {
-public:
- uint8_t alpha=0xFF;
- uint16_t color=0;;
-};
-
-
-//==============================================================================
-//global functions
-//==============================================================================
-void bitSet8(uint8_t & x, uint8_t n);
-void bitClear8(uint8_t & x, uint8_t n);
-void bitToggle8(uint8_t & x, uint8_t n);
-uint8_t bitRead8(uint8_t & x, uint8_t bit);
-void bitWrite8(uint8_t & x, uint8_t bit, uint8_t value);
-
-String uint64ToString(uint64_t input);
-
-
-//==============================================================================
-String getNumericResult(uint32_t nVal,uint32_t nOffs,uint32_t nScale,uint8_t nOpt,uint8_t nDecimals,boolean nFormat);
-
-char * sci(double number, int digits,boolean nTrunc=false);
-void sci(Stream &str, float f, uint8_t digits,boolean nTrunc=false);
-//
-String  getUniCodeInfo     (String str,boolean setLine);
-int16_t getUniCodeIndexOf  (String str,wchar_t wc0,wchar_t wc1);
-String  getUniCodeReplace  (String str,wchar_t wc0, wchar_t wc1);
-String  getUniCodeSubstring(String str,uint16_t a,uint16_t cc);
-String  getUniCodeRemove   (String str,uint16_t a,uint16_t cc);
-
-
-//------------------------------------------------------------------------------
-boolean HasInArray(uint8_t eIdx, const int8_t objSet[]);
-//
-String getStringHEX(uint32_t valHex,uint8_t len);
-String getStringHEXInfo(String str,boolean info=true);
-//
-String getStringDEC(uint32_t valDEC,uint8_t len);
-//
-String  getMsgFrameStr(CANMsg *pMsg);
-//
-float  getFloatFromInt (uint32_t int4);
-double getDoubleFromInt(uint32_t int4);
-
-
-//==============================================================================
-//------------------------------------------------------------------------------
 //Definition consts
-//------------------------------------------------------------------------------
-const String gProgVersion="23.01";
+//==============================================================================
+const String gProgVersion="23.05";
 const String delm0="----------------";
 const String delm1="================";
 
 //const uint32_t max_size=0xFFFF/2;
 const uint32_t max_size=4*0xFFFF;
-
+const uint8_t  listMax=3;
 //------------------------------------------------------------------------------
  const int8_t _objTypeSet[]={2,0,-48};
  const int8_t _objStringTypeSet[]={2,11,22};
@@ -319,6 +149,19 @@ const uint32_t max_size=4*0xFFFF;
   const uint32_t TECU_PGN          =0x00FE0000;
   const uint32_t TECU_REMOTE0_PGN  =0x00FE0A00;
   const uint32_t TECU_REMOTE1_PGN  =0x00FE0B00;
+  const uint32_t TECU_Facilities0_PGN  =0x00FE0900;
+  const uint32_t TECU_Facilities1_PGN  =0x00FE0800;
+  // 
+  const uint32_t TECU_WHEEL_PGN   =0x00FE4800;
+  const uint32_t TECU_GROUND_PGN  =0x00FE4900;
+  const uint32_t TECU_ENGINE_PGN  =0x00F00400;
+  //
+  const uint32_t TECU_RearPTOOutShaft_PGN  =0x00FE4300;
+  const uint32_t TECU_RearHitchStatus_PGN  =0x00FE4500;
+  //  
+  const uint32_t TECU_FrontPTOOutShaft_PGN =0x00FE4400;
+  const uint32_t TECU_FrontHitchStatus_PGN =0x00FE4600;
+  //
   const uint32_t WMASTER_PGN       =0x00FE0D00;
   const uint32_t WMEMBER_PGN       =0x00FE0C00;
   const uint32_t TIME_PGN          =0x00FEE600;
@@ -431,6 +274,8 @@ const uint32_t max_size=4*0xFFFF;
  //ControlByte Auxiliary Assign and Status ISO2/3
   const uint8_t  AUX2_ASSIGN =0x20;
   const uint8_t  AUX2_STATUS =0x21;
+  //
+  const uint8_t  AUX3_ASSIGN_PREF =0x22;
   const uint8_t  AUX3_ASSIGN =0x24; //$24  36 dec
   const uint8_t  AUX3_STATUS =0x26; //$26  38 dec
 
@@ -495,6 +340,318 @@ Not Valid Version Label Characters:
   const uint8_t  VTCharLabel[16]={0x5C,0x22,0x27,0x60,0x2F,0x3A,0x2A,0x3C,0x3E,0x7F,0x3F,0x00,0x00,0x00,0x00,0x00};
 
 
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//Definition set of objects with
+//------------------------------------------------------------------------------
+//Sets Definition PoolData
+  const uint8_t gPoolObjMax     =50;  //maximum actual valid objects type
+  const uint8_t gPoolObjMax0    =48;  //actual valid objects type
+  //
+  const uint8_t gPictureType   =20;
+  //Set of Pointer objects,Pointer=27
+  const uint8_t gPointerType   =27;
+  const uint8_t gContainterType=3;
+  const int8_t  pointerObjRefSet[]  ={4,3,5,-20,27};
+  //  
+  //set of objects with
+  const int8_t  auxAllObjSet[]  ={4,29,30,31,32};
+  const int8_t  auxAllObjSet2[] ={2,31,32};
+  const uint8_t gAuxFuncType    =31;
+  const uint8_t gAuxInpType     =32;
+  const uint8_t gAuxPtnType     =33;
+  //
+  const uint8_t gWindowMaskType =34;  //WindowMaskObject,Container
+  const uint8_t gKeyGroupType   =35;  //KeyGroupObject,Container
+  const uint8_t gOutputListType =37;  //OutputListField
+  const uint8_t gColorMapType   =39;  //ColorMapType
+  const uint8_t gLabelRefType   =40;  //LabelReferenceListContainter
+  //  
+  //Definition external objects types,gExternalDefType,gExternalNameType,gExternalPointerType
+  const uint8_t gExternalDefType =41;
+  const uint8_t gExternalNameType=42;
+  const uint8_t gExternalPointerType=43;
+  //Animation Object
+  const uint8_t gAnimationObjType =44;
+  //
+  const uint8_t gColorPalType    =45;  //ColorPalType
+  const uint8_t gGraphicData     =46;
+  const uint8_t gWSControlType   =47;  //WorkingSetControlType
+  const uint8_t gScaleGraphicType=48;
+  //
+  //
+  /*
+  //Set of drawing objects
+  const int8_t drawObjSet[]     ={12,0,-20,27,29,-34,gColorMapType,36,37,44,gKeyGroupType,46,48};
+
+  //Set of moving objects
+  const int8_t moveObjSet[]     ={10,3,6,-20,27,33,34,gColorMapType,36,37,44};
+  //Set of Height=width objects Boolean,Meter, PictureGraphic extra
+  const int8_t widthObjSet[]    ={3,7,17,20};
+  const int8_t pictObjSet[]     ={1,20};
+  */
+  //Set of Numeric Value objects
+  const int8_t numObjSet[]      ={3,9,12,21};
+  //Set of String Value objects
+  const int8_t strgObjSet[]     ={5,8,11,22,26,36};
+  //Set of Input objects  with Button
+
+  const uint8_t gInpStringType=8;
+  const int8_t  inpObjSet[]   ={3,6,-10,33}; //+ auxPtnObjSet;
+  //Set of numeric Input objects
+  const int8_t inpNumObjSet[]   ={4,7,9,10,33};
+  //Set of all Input objects
+  const int8_t inpAllObjSet[]   ={5,7,8,9,10,33};
+  //edit object set
+  const int8_t editObjSet[]     ={2,8,9};
+  const int8_t editObjSetK[]    ={4,8,9,10,33};
+
+  //Set of numeric InputList objects
+  const uint8_t gInpBooleanObjType=7;
+  const uint8_t gInpNumericObjType=9;
+  const uint8_t gInpListObjType   =10;
+  const int8_t  inpListObjSet[]   ={2,10,33};
+  //Set of Button objects
+  const uint8_t gButObjType=6;
+  
+  //Set of Key objects
+  const uint8_t gKeyObjType=5;
+  
+  //Set of SoftKeyMask objects
+  const uint8_t gKeyMaskObjType=4;
+  
+  //Set of WorkingSet objects
+  const uint8_t gWSetObjType=0;
+  
+  //Set of Mask objects
+  const int8_t  topObjSet[]       ={4,0,1,2,4};
+  const int8_t  wsMaskObjSet[]    ={3,0,1,2};
+  const int8_t  maskObjSet[]      ={2,1,2};;
+  const uint8_t gDataMaskObjType =1;
+  const uint8_t gAlarmMaskObjType=2;
+  
+  //Set of Output objects
+  const int8_t outObjSet[]      ={3,11,12,37};
+  const int8_t gOutStrObjType   =11;
+
+  //Set of Attributes objects
+  const int8_t  attrObjSet[]     ={2,21,-26};
+  const int8_t  inpAttrObjSet[]  ={2,26,38};
+  const uint8_t gInpNAttrObjType =26;
+
+  //Set of Refrence objects
+  const int8_t  RefObjSet[]      ={2,21,22};
+  const uint8_t gNumVarObjType   =21;
+  const uint8_t gStrVarObjType   =22;
+
+  //Set of FontAttributes objects
+  const uint8_t gFontObjType=23;
+  //Set ListObjects
+  const int8_t listObjSet[] ={4,10,33,37,gExternalDefType}; //OutputList=37
+
+  //Set ListObjects for Points, Polygon, GraphicsContext,ColorPalette
+  const int8_t  ptnObjSet[]       ={3,16,36,45};
+  const uint8_t gPolygonObjType   =16;
+  
+  //no Input allowed for parent objects
+  const int8_t noInpObjSet[]    ={8,0,2,4,-26,28,-36,38,-43};
+  //no Keys allowed for parent objects
+  const int8_t noKeyObjSet[]    ={9,0,-3,5,-26,28,-34,36,38,-43};
+  //only width allowed for ob jects
+  const int8_t widthObjSet[]    ={3,7,17,20};
+  //
+
+
+//==============================================================================
+//STRUCTURES
+//==============================================================================
+//Structure VTKeyboard
+//==============================================================================
+#define KEYBOARD_X (0)
+#define KEYBOARD_Y (26)
+//
+#define KEY_W (40)
+#define KEY_H (40)
+//
+#define COLS (8)
+#define ROWS (5)
+
+#define MAX_SHIFT_MODE (4)
+//==============================================================================
+
+typedef enum {
+  KEY_MODE_LETTER = 0,
+  KEY_MODE_NUMBER = 1,
+} key_mode_t;
+
+
+//==============================================================================
+//Structure VTDateTime
+//==============================================================================
+typedef struct {
+  uint8_t Hours;
+  uint8_t Minutes;
+  uint8_t Seconds;
+  uint8_t HoursOffs;
+  uint8_t MinutesOffs;
+} VT_TimeTypeDef;
+
+//==============================================================================
+typedef struct {
+  uint8_t WeekDay;
+  uint8_t Date;
+  uint8_t Month;
+  uint16_t Year;
+} VT_DateTypeDef;
+
+
+//==============================================================================
+typedef struct i2cDevice {
+  i2cDevice() {
+    Name = "";
+    addr = 0;
+    nextPtr = nullptr;
+  };
+  String Name;
+  uint8_t addr;
+  struct i2cDevice *nextPtr;
+} i2cDevice_t;
+
+
+
+//==============================================================================
+//CLASSES
+//==============================================================================
+//Class TVTDateTime
+//==============================================================================
+class TVTDateTime {
+ private:
+  uint8_t trdata[7];
+  //
+  void Bcd2asc(void);
+  uint8_t Bcd2ToByte(uint8_t Value);
+  uint8_t ByteToBcd2(uint8_t Value);
+  void Str2Time(void);
+  void DataMask();
+  
+ public:
+  uint8_t Second;
+  uint8_t Minute;
+  uint8_t Hour;
+  uint8_t Week;
+  uint8_t Day;
+  uint8_t Month;
+  uint8_t Year;
+  uint8_t DateString[9];
+  uint8_t TimeString[9];
+
+  uint8_t asc[14];
+
+  //void begin(void);
+  //void GetBm8563Time(void);
+
+  int SetTime(VT_TimeTypeDef* VT_TimeStruct);
+  int SetDate(VT_DateTypeDef* VT_DateStruct);
+
+  void GetTime(VT_TimeTypeDef* VT_TimeStruct);
+  void GetDate(VT_DateTypeDef* VT_DateStruct);
+};
+
+
+
+//==============================================================================
+//LoopbackStream
+//==============================================================================
+class LoopbackStream {
+  uint8_t *buffer=NULL;
+  uint32_t buffer_size=0;
+  uint32_t pos=0, size=0;
+public:
+  uint32_t setNewBufferSize(uint32_t bSize, boolean psRAM=true);
+  uint32_t clear(boolean psRAM=true);
+  uint8_t* getBuffer();
+  uint32_t getBufferSize();
+  uint32_t available();
+  uint32_t setPos(uint32_t bPos);
+  uint32_t getPos();
+  uint32_t setSize(uint32_t bSize);
+  uint32_t getSize();
+  //
+  uint32_t writeBytes(uint8_t *buff,uint32_t bSize,int32_t bPos=-1,uint32_t buffPos=0);
+  uint32_t writeBytesVal(uint32_t dVal,uint32_t bSize,int32_t bPos=-1);
+  //
+  uint32_t removeBytes(uint32_t pPos0,uint32_t pPos1);
+  
+  uint32_t readBytes(uint8_t *buff,uint32_t bSize,int32_t bPos=-1);
+  uint32_t readBytesVal(uint32_t bSize,int32_t bPos=-1);
+  String   readBytesString(uint32_t bSize,int32_t bPos=-1);
+  //
+  uint32_t write(uint8_t b);
+  uint8_t  read();
+  uint8_t  peek();
+};
+
+
+
+//==============================================================================
+//Definition CAN message
+//==============================================================================
+class CANMsg {
+public:
+   long unsigned int ID=0;               // CAN ID
+   uint8_t   LEN=8;                      // Data Length Code
+   uint8_t   DATA[256]={};               // Data array
+   uint8_t   MSGTYPE=0;                  // Remote request flag
+   uint8_t   MSG_TX=0;                   // TX transmit flag
+   uint32_t  TimeStamp=millis();         // CAN Timestamp
+   char      msgString[128];
+
+};
+
+
+//==============================================================================
+class TVTPixelXY {
+public:
+ int16_t  pixelX=0;
+ int16_t  pixelY=0;
+ int16_t  pixelXOffs=0;
+ int16_t  pixelYOffs=0;
+ uint16_t pixelXX=0;
+ uint16_t pixelYY=0;
+ uint16_t pixelW=0;
+ uint16_t pixelH=0;
+ uint16_t pixelN=0;
+ uint16_t pixelS=0;
+ uint8_t  pixelC=0;
+ uint8_t  pixelFormat=0;
+ float    pixelXF=1.000;
+ float    pixelYF=1.000;
+ boolean  flash=false;
+ boolean  swap=false;
+};
+
+
+//==============================================================================
+class TVTTouchXY {
+public:
+ int16_t  x=0;
+ int16_t  y=0;
+};
+
+
+//==============================================================================
+class TVTAttrValue {
+public:
+ uint32_t attrValue[3]={0,0,0};
+ String   attrName[3]={"VTLineColour","VTLineWidth","VTLineArt"};
+};
+
+//==============================================================================
+class TVTColorAlpha {
+public:
+ uint8_t alpha=0xFF;
+ uint16_t color=0;;
+};
 
 
 //==============================================================================
@@ -506,6 +663,29 @@ class TVTAttrAID {
  uint8_t typeAID=0;
  String  nameAID="";
  String  valueAID="";
+};
+
+
+//------------------------------------------------------------------------------
+class TVT_TECU_Data {
+ public:
+ uint8_t  wheel=0;
+ uint8_t  Direction=0;
+ uint8_t  StartStopState=0;
+ uint8_t  wgKey=0;
+ uint8_t  MaxTimeOfTractorPower=0;
+ uint32_t Distance=0;
+ //
+ //Wheel,Ground,Speed,RearStatus,FrontStatus,RearSpeed,FrontSpeed,Distance
+ //ParentObject
+ uint16_t pObjID[8]={17027,17027,12011,18002,18003,18000,18001,0xFFFF};
+ int16_t  pObjIdx[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+ //
+ //VariableReference ID
+ uint16_t objID[8]={21035,21035,21011,21000,21001,21030,21031,22000}; //0xFFFF};
+ int16_t  objIdx[8]={-1,-1,-1,-1,-1,-1,-1,-1};
+ uint32_t objValue0[8]={0,0,0,0,0,0,0,0};
+ uint32_t objValue1[8]={0,0,0,0,0,0,0,0};
 };
 
 
@@ -524,9 +704,20 @@ class TVT_Net {
   uint32_t VTObjLen=0;
   uint32_t VTObjPos=0;
   //
+  //TECU data receive
+  TVT_TECU_Data tecuData;
+  //String TECU_Monitor="/_tecu_monitor.iop";
+  String TECU_Monitor="/_v6_opc50_4.iop";
+  //
+  //variable for input objects
+  boolean  getVTValue=false;
   uint32_t VTValue=0;
   String   VTValueStr="";
-  uint16_t VTObjMax[2]={VTObjMaxDef,VTObjMaxDef};
+  uint16_t VTInpAttr=0xFFFF; //reference to actual InputAttributes of StringInput
+  uint16_t VTInpFont=0xFFFF; //reference to actual InputFont of StringInput
+  //  
+  //max objects in objectlist
+  uint16_t VTObjMax[listMax]; //0..listMax
   //
   boolean  VT_ChangeAttr=false;
   boolean  VT_SetEvent=true;
@@ -538,13 +729,15 @@ class TVT_Net {
 
   boolean CAN_active=false;
   boolean LOG_active=false;
+  boolean Trace_active=false;
+  boolean CR_active=false;
   //
   uint8_t  VT_SRC=0x26;    //default VT-address
   String   VT_SRC_WS="FFFFFFFFFFFFFFFF";    //default VT-Workingset Name VT
   //
-  uint32_t VT_DST_TIME[2]={millis(),millis()};     //default ECU-TimeStampDiff 0 and 1
-  uint8_t  VT_DST[2]={0xFF,0xFF};    //default ECU-addresses 0 and 1
-  String   VT_DST_WS[2]={"FFFFFFFFFFFFFFFF","FFFFFFFFFFFFFFFF"}; //default ECU-Workingset Name 0 and 1
+  uint32_t VT_DST_TIME[listMax]; //default ECU-TimeStampDiff 0..listMax
+  uint8_t  VT_DST[listMax];      //default ECU-addresses 0..listMax
+  String   VT_DST_WS[listMax];   //default ECU-Workingset Name 0..listMax
   //
   String   WS_List[WS_ListCount];         //default ECU-Workingset Name List
 
@@ -617,6 +810,7 @@ class TVT_Net {
      {0,0,0,0,128,192,9}};//14
   //
   String fntName="arial2-1";
+  String fntNamePool[listMax];
   uint8_t  optn=0;
   uint16_t level=0;
   int16_t  x=0;
@@ -627,16 +821,17 @@ class TVT_Net {
   uint16_t h=0;
   //
   uint8_t listNr=0;
+  uint8_t AuxlistNr=0;
   //
   M5Display& tft = M5.Lcd;
   TFT_eSprite ImgTFT = TFT_eSprite(&tft);
   //TFT_eSprite ImgTFT = TFT_eSprite(&M5.Lcd);
     //
     #ifdef M5CORE2_MODE
-     uint8_t butMax=6;
-     Button *softkey_list[6]={NULL,NULL,NULL,NULL,NULL,NULL};
-     Button *button_list[6]= {NULL,NULL,NULL,NULL,NULL,NULL};
-     Button *input_list[6]=  {NULL,NULL,NULL,NULL,NULL,NULL};
+     uint8_t butMax=16;
+     Button *softkey_list[16]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+     Button *button_list[16]= {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+     Button *input_list[16]=  {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
     #endif
   //
   //PNG decoder instance
@@ -655,13 +850,16 @@ class TVT_Net {
   int16_t   TFT_KeySelect=-1;
   int16_t   TFT_KeyPage=-1;
   uint16_t  TFT_KeySelectObjID=0xFFFF;
+  uint16_t  TFT_KeySelectObjType=0xFF;
   //
   int8_t    TFT_ButtonPressed=-1;
   uint8_t   TFT_ButtonSelect=0;
   uint16_t  TFT_ButtonSelectObjID=0xFFFF;
+  uint8_t   TFT_ButtonSelectObjType=0xFF;
   //
   int16_t   TFT_InputSelect=-1;
   uint16_t  TFT_InputSelectObjID=0xFFFF;
+  uint8_t   TFT_InputSelectObjType=0xFF;
   //
   uint8_t   TFT_SelectNr=255;
   //
@@ -719,32 +917,48 @@ class TVT_Net {
   boolean  VTPressedFor=false;
   boolean  VTPressedABC=false;
   boolean  VTChangeSelect=false;  
-  uint8_t  VTPushStop=0;
+  int8_t   VTPageSelect=0;
+  uint8_t  VTPageMax=3;
+  uint8_t  VTTraceLine=0;
   //
   boolean  VTUpLoad=false;
   boolean  VTPoolRefresh=false;
   boolean  VTPoolClear=false;
-  String   infoStr[6]={"CAN-MCP2515:250kbit","WebSocket:","Webserver","AccessPoint:","ImageMode:","Mask:"};
+
+#ifdef COM_CAN_MODE
+  // by JG COM_CAN_MODE_B: interner CAN PIN26 u. Pin36
+   String   infoStr[6]={"CAN-Intern:250kbit","WebSocket:","Webserver:","AccessPoint:","ImageMode:","Mask:"}; 
+#else
+  String   infoStr[6]={"CAN-MCP2516:250kbit","WebSocket:","Webserver:","AccessPoint:","ImageMode:","Mask:"};
+#endif
   //  
   String VTObjName="";
   //
   LoopbackStream streamDraw;
-  LoopbackStream stream_Draw[2];
+  LoopbackStream stream_Draw[listMax];
   //
-  LoopbackStream stream_Cmd[2];
+  LoopbackStream stream_Cmd[listMax];
   //
   LoopbackStream streamStr;
-  LoopbackStream streamObj[2];
-  LoopbackStream stream_Pool[2];
+  LoopbackStream streamObj[listMax];
+  LoopbackStream stream_Pool[listMax];
   //
-  LoopbackStream stream_ETP[2];
-  LoopbackStream stream_TP[2];
+  LoopbackStream stream_ETP[listMax];
+  LoopbackStream stream_TP[listMax];
   //
   LoopbackStream stream_Font[15][4];
   //
-  boolean sd_available=true;
-  boolean sp_available=true;
-  
+  boolean valid_sd=true;
+  boolean valid_sp=true;
+  boolean SD_Mode=true;
+  boolean SD_DownLoad=false;
+  //
+  String  inputLineString="";           // a String to set line data to auto.txt file
+  String  inputSerialString="";         // a String to hold incoming data
+  uint8_t inputSerialIndex=0;           //
+  boolean inputSerialComplete = false;  // whether the string is complete
+  boolean notSerialReceive=false;
+  //
   boolean PSRam=false;
   //
   //VTAudio   
@@ -778,9 +992,34 @@ class TVT_Net {
     Point tPoint;
     Point rPoint;
    #endif
-  uint8_t VTKeyboardActive=0;
-  
+   //
+  uint16_t VTKeyboardOffs=0x0000;
   //
+  uint8_t  VTTraceFilter=0xFF; //not trace filtering
+  uint8_t  VTTraceActive=0;
+  uint8_t  VTStampActive=0;
+  uint32_t VTTimeStamp=0;
+  //
+  String  ssid_w="";
+  String  password_w="";
+  String  ip_w="";
+  //
+  String  ssid_a="";
+  String  password_a="";
+  String  ip_a="";
+  //
+  String  SSID_List="";
+  uint8_t SSID_ListMax=12;
+  int8_t  SSID_ListIdx=-1;
+  int8_t  SSID_ListIdxMax=-1;
+  //
+  //Auxiliary functions and inputs 
+  String VTAuxFuncList="";
+  String VTAuxInpList="";
+  //
+  //Auxiliary assign preferAssignment, VT->Assignment
+  String VTAuxAssignList="";
+  
 //------------------------------------------------------------------------------
 //Definition Color range and ISO Color palette
 //------------------------------------------------------------------------------
@@ -859,123 +1098,61 @@ uint32_t gISO_ColourMap[256]=
 };//TVT_Net
 
 
+//==============================================================================
+//FUNCTIONS
+//==============================================================================
+//global functions
+//==============================================================================
+void bitSet8(uint8_t & x, uint8_t n);
+void bitClear8(uint8_t & x, uint8_t n);
+void bitToggle8(uint8_t & x, uint8_t n);
+uint8_t bitRead8(uint8_t & x, uint8_t bit);
+void bitWrite8(uint8_t & x, uint8_t bit, uint8_t value);
+
+String uint64ToString(uint64_t input);
+
+
+//==============================================================================
+String getNumericResult(uint32_t nVal,uint32_t nOffs,uint32_t nScale,uint8_t nOpt,uint8_t nDecimals,boolean nFormat);
+
+char * sci(double number, int digits,boolean nTrunc=false);
+void sci(Stream &str, float f, uint8_t digits,boolean nTrunc=false);
+//
+uint16_t getUniCodeFontIndex(String str, uint16_t k, TVT_Net *pVT_Net);
+uint16_t setUniCodeFontIndex(String str, uint16_t k, TVT_Net *pVT_Net);
+String   getUniCodeInfo     (String str,boolean setLine);
+int16_t  getUniCodeIndexOf  (String str,wchar_t wc0,wchar_t wc1);
+String   getUniCodeReplace  (String str,wchar_t wc0, wchar_t wc1);
+String   getUniCodeSubstring(String str,uint16_t a,uint16_t cc);
+String   getUniCodeRemove   (String str,uint16_t a,uint16_t cc);
+String   setUniCodeStrToASCII(String uStr);
+String   setASCIItoUniCodeStr(String aStr);
 
 //------------------------------------------------------------------------------
-//Definition set of objects with
-//------------------------------------------------------------------------------
-//Sets Definition PoolData
-  const uint8_t gPoolObjMax     =50;  //maximum actual valid objects type
-  const uint8_t gPoolObjMax0    =48;  //actual valid objects type
-  //
-  const uint8_t gPictureType   =20;
-  //Set of Pointer objects,Pointer=27
-  const uint8_t gPointerType   =27;
-  const uint8_t gContainterType=3;
-  const int8_t  pointerObjRefSet[]  ={4,3,5,-20,27};
-  //  
-  //set of objects with
-  const int8_t  auxAllObjSet[]  ={4,29,30,31,32};
-  const uint8_t gAuxPtnType     =33;
-  //
-  const uint8_t gWindowMaskType =34;  //WindowMaskObject,Container
-  const uint8_t gKeyGroupType   =35;  //KeyGroupObject,Container
-  const uint8_t gOutputListType =37;  //OutputListField
-  const uint8_t gColorMapType   =39;  //ColorMapType
-  const uint8_t gLabelRefType   =40;  //LabelReferenceListContainter
-  //  
-  //Definition external objects types,gExternalDefType,gExternalNameType,gExternalPointerType
-  const uint8_t gExternalDefType =41;
-  const uint8_t gExternalNameType=42;
-  const uint8_t gExternalPointerType=43;
-  //Animation Object
-  const uint8_t gAnimationObjType =44;
-  //
-  const uint8_t gColorPalType    =45;  //ColorPalType
-  const uint8_t gGraphicData     =46;
-  const uint8_t gWSControlType   =47;  //WorkingSetControlType
-  const uint8_t gScaleGraphicType=48;
-  //
-  //
-  /*
-  //Set of drawing objects
-  const int8_t drawObjSet[]     ={12,0,-20,27,29,-34,gColorMapType,36,37,44,gKeyGroupType,46,48};
+boolean  HasInArray(uint8_t eIdx, const int8_t objSet[]);
+//
+String   getStringLeftTrim(String str);
+String   getStringRightTrim(String str);
+String   getStringHEX(uint32_t valHex,uint8_t len);
+int16_t  hexCharacterToInt(String str);
+uint16_t hexCharacterToObjID(String str);
+uint64_t hexCharacterToInt64(String str,int8_t len);
+//
+void    getAddressInfo(TVT_Net *pVT_Net);
+//
+int16_t getIntFromHEX(String str);
+String  getStringHEXInfo(String str,boolean info=true);
+//
+String getStringDEC(uint32_t valDEC,uint8_t len);
+//
+String  getMsgFrameStr(CANMsg *pMsg);
+//
+float  getFloatFromInt (uint32_t int4);
+double getDoubleFromInt(uint32_t int4);
+//
+void   resetSelectInput(TVT_Net *pVT_Net);
 
-  //Set of moving objects
-  const int8_t moveObjSet[]     ={10,3,6,-20,27,33,34,gColorMapType,36,37,44};
-  //Set of Height=width objects Boolean,Meter, PictureGraphic extra
-  const int8_t widthObjSet[]    ={3,7,17,20};
-  const int8_t pictObjSet[]     ={1,20};
-  */
-  //Set of Numeric Value objects
-  const int8_t numObjSet[]      ={3,9,12,21};
-  //Set of String Value objects
-  const int8_t strgObjSet[]     ={5,8,11,22,26,36};
-  //Set of Input objects  with Button
 
-  const uint8_t gInpStringType=8;
-  const int8_t  inpObjSet[]   ={3,6,-10,33}; //+ auxPtnObjSet;
-  //Set of numeric Input objects
-  const int8_t inpNumObjSet[]   ={4,7,9,10,33};
-  //Set of all Input objects
-  const int8_t inpAllObjSet[]   ={5,7,8,9,10,33};
-  //edit object set
-  const int8_t editObjSet[]     ={2,8,9};
-
-  //Set of numeric InputList objects
-  const uint8_t gInpBooleanObjType=7;
-  const uint8_t gInpNumericObjType=9;
-  const uint8_t gInpListObjType   =10;
-  const int8_t  inpListObjSet[]   ={2,10,33};
-  //Set of Button objects
-  const uint8_t gButObjType=6;
-  
-  //Set of Key objects
-  const uint8_t gKeyObjType=5;
-  
-  //Set of SoftKeyMask objects
-  const uint8_t gKeyMaskObjType=4;
-  
-  //Set of WorkingSet objects
-  const uint8_t gWSetObjType=0;
-  
-  //Set of Mask objects
-  const int8_t  topObjSet[]       ={4,0,1,2,4};
-  const int8_t  wsMaskObjSet[]    ={3,0,1,2};
-  const int8_t  maskObjSet[]      ={2,1,2};;
-  const uint8_t gDataMaskObjType =1;
-  const uint8_t gAlarmMaskObjType=2;
-  
-  //Set of Output objects
-  const int8_t outObjSet[]      ={3,11,12,37};
-  const int8_t gOutStrObjType   =11;
-
-  //Set of Attributes objects
-  const int8_t  attrObjSet[]     ={2,21,-26};
-  const int8_t  inpAttrObjSet[]  ={2,26,38};
-  const uint8_t gInpNAttrObjType =26;
-
-  //Set of Refrence objects
-  const int8_t  RefObjSet[]      ={2,21,22};
-  const uint8_t gNumVarObjType   =21;
-  const uint8_t gStrVarObjType   =22;
-
-  //Set of FontAttributes objects
-  const uint8_t gFontObjType=23;
-  //Set ListObjects
-  const int8_t listObjSet[] ={4,10,33,37,gExternalDefType}; //OutputList=37
-
-  //Set ListObjects for Points, Polygon, GraphicsContext,ColorPalette
-  const int8_t  ptnObjSet[]       ={3,16,36,45};
-  const uint8_t gPolygonObjType   =16;
-  
-  //no Input allowed for parent objects
-  const int8_t noInpObjSet[]    ={8,0,2,4,-26,28,-36,38,-43};
-  //no Keys allowed for parent objects
-  const int8_t noKeyObjSet[]    ={9,0,-3,5,-26,28,-34,36,38,-43};
-  //only width allowed for ob jects
-  const int8_t widthObjSet[]    ={3,7,17,20};
-  //
-  //
 //==============================================================================
 //==============================================================================
 #endif // _UnitVTObjConsts_

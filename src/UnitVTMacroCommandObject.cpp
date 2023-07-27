@@ -295,7 +295,7 @@ VTError=0x01;
      //
      if (objIdx>=0) {
        pVT_Net->VTObjID=VTObjectReference;
-         // 
+         //Key-object 
          if (pVT_Net->VTObjType==5) {
            objIdx=getVTObjID(pVT_Net,pVT_Net->VT_ActiveSoftKeyMask);
            //getStreamStrInfo(pVT_Net);
@@ -334,12 +334,13 @@ VTError=0x01;
                 if (pVT_Net->TFT_InputSelectObjID<0xFFFF)  objID=pVT_Net->TFT_InputSelectObjID;
               change=((change) || (objID!=pVT_Net->VTObjID));
               pVT_Net->TFT_KeySelectObjID=VTObjectReference;
+              pVT_Net->TFT_KeySelectObjType=5;
               pVT_Net->VTSelectMode="C";
               err=0x00;
              }
          }//type==5
          //
-         //mask inputs and button
+         //mask inputs and button=6
          if ((pVT_Net->VTObjType==6) || (HasInArray(pVT_Net->VTObjType,inpAllObjSet))) {
             pVT_Net->VTSelectMode="A";  
              if (pVT_Net->VTObjType==6) pVT_Net->VTSelectMode="B";
@@ -351,20 +352,24 @@ VTError=0x01;
                    if (pVT_Net->TFT_InputSelectObjID<0xFFFF)  objID=pVT_Net->TFT_InputSelectObjID;
                  change=((change) || (objID!=pVT_Net->VTObjID));
                  pVT_Net->TFT_ButtonSelectObjID=pVT_Net->VTObjID;
+                 pVT_Net->TFT_ButtonSelectObjType=6;
                }else {
                    if (pVT_Net->TFT_KeySelectObjID<0xFFFF)    objID=pVT_Net->TFT_KeySelectObjID;
                    if (pVT_Net->TFT_ButtonSelectObjID<0xFFFF) objID=pVT_Net->TFT_ButtonSelectObjID;
                    if (pVT_Net->TFT_InputSelectObjID<0xFFFF)  objID=pVT_Net->TFT_InputSelectObjID;
                  change=((change) || (objID!=pVT_Net->VTObjID));
                  pVT_Net->TFT_InputSelectObjID=pVT_Net->VTObjID;
+                 pVT_Net->TFT_InputSelectObjType=pVT_Net->VTObjType;
                }
              } else {
                if (pVT_Net->VTObjType==6){
                 change=((change) || (pVT_Net->TFT_ButtonSelectObjID!=0xFFFF));
                 pVT_Net->TFT_ButtonSelectObjID=0xFFFF;
+                pVT_Net->TFT_ButtonSelectObjType=0xFF;
                }else {
                 change=((change) || (pVT_Net->TFT_InputSelectObjID!=0xFFFF));
                 pVT_Net->TFT_InputSelectObjID=0xFFFF;
+                pVT_Net->TFT_InputSelectObjType=0xFF;
                }
               eventID=VTOnInputFieldDeselection;
              }
@@ -510,9 +515,9 @@ String nameAttr="", valueAttr="";
 boolean valid=false,change=false;
 uint8_t ctrlByte=0xFF, src=((pMsg->ID)>>0) & 0xFF;
 uint8_t dst=((pMsg->ID)>>8) & 0xFF;
-  if (pStream->available()>8) ctrlByte=pStream->read();
+  if ((pStream!=NULL) && (pStream->available()>8)) ctrlByte=pStream->read();
   //TP_EOMA
-  if (((pMsg->ID & 0x00FF0000)==TP_PGN) && (src==pVT_Net->VT_SRC) && (pMsg->DATA[0]==0x13) && (ctrlByte=VT0PCommFunction)){
+  if (((pMsg->ID & 0x00FF0000)==TP_PGN) && (src==pVT_Net->VT_SRC) && (pMsg->DATA[0]==0x13) && (ctrlByte==VT0PCommFunction)){
    pMsg->MSG_TX=1; pMsg->MSGTYPE=1; pMsg->LEN=8;
    pMsg->ID=(ECU_VT_PRIO<<24) + VTtoECU_PGN + (dst<<8) + pVT_Net->VT_SRC;
    pMsg->DATA[0]=VT0PCommFunction;
@@ -1107,9 +1112,9 @@ boolean valid=false,change=false;
 uint16_t len=0,i=0;
 uint8_t ctrlByte=0xFF, src=((pMsg->ID)>>0) & 0xFF,objType=0xFF;
 uint8_t dst=((pMsg->ID)>>8) & 0xFF;
-  if (pStream->available()) ctrlByte=pStream->read();
+  if ((pStream!=NULL) && (pStream->available())) ctrlByte=pStream->read();
   //TP_EOMA
-  if (((pMsg->ID & 0x00FF0000)==TP_PGN) && (src==pVT_Net->VT_SRC) && (pMsg->DATA[0]==0x13) && (ctrlByte=VT0PCommFunction)){
+  if (((pMsg->ID & 0x00FF0000)==TP_PGN) && (src==pVT_Net->VT_SRC) && (pMsg->DATA[0]==0x13) && (ctrlByte==VT0PCommFunction)){
    pMsg->MSG_TX=1; pMsg->MSGTYPE=1; pMsg->LEN=8;
    pMsg->ID=(ECU_VT_PRIO<<24) + VTtoECU_PGN + (dst<<8) + pVT_Net->VT_SRC;
    pMsg->DATA[0]=VT0PCommFunction;
@@ -1364,9 +1369,9 @@ uint8_t i=0,oList=pVT_Net->listNr;
 boolean valid=false;
 uint8_t ctrlByte=0xFF, src=((pMsg->ID)>>0) & 0xFF,objType=0xFF;
 uint8_t dst=((pMsg->ID)>>8) & 0xFF,bb=0;
-  if (pStream->available()) ctrlByte=pStream->read();
+  if ((pStream!=NULL) && (pStream->available())) ctrlByte=pStream->read();
   //TP_EOMA
-  if (((pMsg->ID & 0x00FF0000)==TP_PGN) && (src==pVT_Net->VT_SRC) && (pMsg->DATA[0]==0x13) && (ctrlByte=VT0PCommFunction)){
+  if (((pMsg->ID & 0x00FF0000)==TP_PGN) && (src==pVT_Net->VT_SRC) && (pMsg->DATA[0]==0x13) && (ctrlByte==VT0PCommFunction)){
    pMsg->MSG_TX=1; pMsg->MSGTYPE=1; pMsg->LEN=8;
    pMsg->ID=(ECU_VT_PRIO<<24) + VTtoECU_PGN + (dst<<8) + pVT_Net->VT_SRC;
    pMsg->DATA[0]=VT0PCommFunction;
@@ -1376,14 +1381,15 @@ uint8_t dst=((pMsg->ID)>>8) & 0xFF,bb=0;
      for (i=0;i<8;i++) {
          if (pStream->available()) VTWorkingSetName=getStringHEX(pStream->read(),2) + VTWorkingSetName; 
      }//for i
-        
+   //reset selected Input
+   resetSelectInput(pVT_Net);
    //TEST
    Serial.println("VTWorkingSetName"); 
    Serial.println(VTWorkingSetName); 
    Serial.println(pVT_Net->VT_DST_WS[0]); 
    Serial.println(pVT_Net->VT_DST_WS[1]); 
      //
-     for (i=0;i<2;i++) {
+     for (i=0;i<listMax;i++) {
        if (VTWorkingSetName==pVT_Net->VT_DST_WS[i]) {
          pVT_Net->listNr=i; 
          //

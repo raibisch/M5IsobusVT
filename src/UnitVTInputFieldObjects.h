@@ -37,10 +37,9 @@ class TVTInputObject : public TVTFieldObject {
     boolean VTZ_EditMode=false;
     //
     //procedure
-    // by JG return boolean
-    virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){return false;};
-    virtual boolean writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
-    virtual boolean readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
+    virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){};
+    virtual boolean writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){};
+    virtual boolean readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){};
     virtual void setAID(){};
     virtual void getAID(){};
 };

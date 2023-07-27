@@ -46,7 +46,6 @@ int16_t  objIdx=pVT_Net->objNr,refIdx=-1;
  return valid;  
 };
 
-
 //------------------------------------------------------------------------------
 boolean TVTObjectPointer::writeToStream(TVT_Net *pVT_Net,LoopbackStream *pStream){
  return writeToStreamDirect(pVT_Net,pStream);

@@ -20,10 +20,9 @@ class TVTAttributeObject : public TVTObject {
   public:
     String VTMacros="";
     //procedure
-    // by JG: return boolen value
-    virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){return false;};
-    virtual boolean writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
-    virtual boolean readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
+    virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){};
+    virtual boolean writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){};
+    virtual boolean readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){};
     virtual void setAID(){};
     virtual void getAID(){};
 };

@@ -178,6 +178,9 @@ TVT_ViewRect vRect=getViewRect(pViewRect);
     VTValue=getVTObjectAttributeString("VTLength",pVT_Net);
     //paint
     w=VTWidth;h=VTHeight; opt=VTOptions;str=VTValue;
+    //TEST
+    //Serial.println("VTEnabled=" + String(VTEnabled));
+    
     getViewport(pVT_Net,&vRect,x,y,w,h);
     getVTDrawListAddObj(pVT_Net,VTEnabled,&vRect);
     //ref Variable

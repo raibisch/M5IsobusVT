@@ -60,7 +60,7 @@ int16_t objIdx=pVT_Net->objNr;
           //TEST
           //drawBmp("/parrot.bmp", x, y,pVT_Net);
         } else{
-          Set_fillRect(pVT_Net,x,y,w,h,(uint8_t)TFT_LIGHTGREY);
+          Set_fillRect(pVT_Net,x,y,w,h,TFT_LIGHTGREY);
         }
     }//>0
     //

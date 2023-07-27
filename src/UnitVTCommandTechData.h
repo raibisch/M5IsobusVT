@@ -33,8 +33,8 @@
 #endif
 
 //==============================================================================
+//PROCEDURES
 //==============================================================================
-
 boolean VT_CAN_Transmit(TVT_Net *pVT_Net,CANMsg *pMsg);
 //
 boolean writeImageDirect(TVT_Net *pVT_Net);
@@ -42,6 +42,8 @@ boolean writeImageScreen(fs::FS &fs, const char * path,TVT_Net *pVT_Net);
 boolean readImageScreen (fs::FS &fs, const char *path, TVT_Net *pVT_Net);
 
 
+//==============================================================================
+//CLASSES
 //==============================================================================
 //type    TVTTransportProtocol Implementaion 
 class  TVTTransportProtocol {
@@ -281,6 +283,8 @@ private:
    boolean storeFile(fs::FS &fs,TVT_Net *pVT_Net);
    //
    boolean writeFile (fs::FS &fs, const char * path,TVT_Net *pVT_Net);
+   boolean writeStreamToFile(fs::FS &fs, const char * path,LoopbackStream *pStream,TVT_Net *pVT_Net);
+   //
    boolean writeImage(fs::FS &fs, const char * path,TVT_Net *pVT_Net);
    boolean readFile  (fs::FS &fs, const char * path, LoopbackStream *pStream,TVT_Net *pVT_Net);
    //

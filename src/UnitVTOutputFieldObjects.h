@@ -34,10 +34,9 @@ class   TVTFieldObject: public TVTObject{
     String VTMacros="";
     //
     //procedure
-    // by JG: return boolean value
-    virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){return false;};
-    virtual boolean writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
-    virtual boolean readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
+    virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){};
+    virtual boolean writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){};
+    virtual boolean readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){};
     virtual void setAID(){};
     virtual void getAID(){};
 };  
@@ -52,10 +51,9 @@ class   TVTOutputFieldObject: public TVTFieldObject{
   public:
     uint16_t VTHeight=50;
     //procedure
-     // by JG: return boolean value
-    virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){return false;};
-    virtual boolean writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
-    virtual boolean readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
+    virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){};
+    virtual boolean writeToStream (TVT_Net *pVT_Net,LoopbackStream *pStream){};
+    virtual boolean readFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream){};
     virtual void setAID(){};
     virtual void getAID(){};
 };  

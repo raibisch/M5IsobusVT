@@ -16,7 +16,7 @@
 //==============================================================================
 #ifndef UnitVTObjConsts_h
  #define UnitVTObjConsts_h
-   #include "UnitVTObjConsts.h"
+ #include "UnitVTObjConsts.h"
 #endif
 //
 
@@ -24,11 +24,18 @@
 //==============================================================================
 //variable for CAN
 //==============================================================================
-#include <mcp_can.h>
+#ifdef COM_CAN_MODE
+ #include <ESP32CAN.h>           // v1.0.0     from https://github.com/nhatuan84/arduino-esp32-can-demo
+ #include <CAN_config.h>         // as above
+#else
+  #include <mcp_can.h>
+#endif //COM_CAN_MODE
+
 
 //==============================================================================
 //Basic object of pooldata objects
 //------------------------------------------------------------------------------
+//CLASSES
 //------------------------------------------------------------------------------
 class TVT_StartEndPoint {
  public:
@@ -49,8 +56,6 @@ class TVT_StartEndPoint {
  int16_t endX[4]={0,0,0,0}; 
  int16_t endY[4]={0,0,0,0}; 
 };
-
-
 
 
 //------------------------------------------------------------------------------
@@ -95,13 +100,115 @@ class TVTObjIDPoints {
 };
 
 
-//==============================================================================
-uint8_t getFileExists(TVT_Net *pVT_Net,uint8_t fsMode, const char *path);
+//------------------------------------------------------------------------------
+//TVTObject
+//------------------------------------------------------------------------------
+//type global
+class TVTObject {
+  private:
+  protected:
+  public:
+   String   VTObjName="VTObject";
+   uint8_t  VTObjType=0xFF;
+   uint16_t VTObjID=0xFFFF;
+   //
+   uint8_t  VTError=0x00;
+   uint8_t  VTSelect=0x00;
+   uint32_t VTEvent=0;
+   //
+   uint8_t  VT_AID_Nr=32;
+   TVTAttrAID VTAttrAID[32];
+   //
+   //procedure
+   void     getVTDrawListAddObj(TVT_Net *pVT_Net,boolean enabled,TVT_ViewRect *pViewRect);
+   int8_t   SetSelectState     (TVT_Net *pVT_Net,boolean enabled,TVT_ViewRect *pViewRect);
+   //
+   uint16_t getVTItemsNumber(uint8_t idx, String attrName,TVT_Net *pVT_Net);
+   //
+   uint16_t setVTEvents (boolean writeMode);
+   //
+   boolean getVTColourItems(TVT_Net *pVT_Net,uint16_t nn, LoopbackStream *pStream);
+   boolean getVTString (TVT_Net *pVT_Net,uint16_t nn, LoopbackStream *pStream);
+   boolean getVTLabels (TVT_Net *pVT_Net,uint16_t nn, LoopbackStream *pStream);
+   boolean getVTObjects(TVT_Net *pVT_Net,uint8_t  nn, LoopbackStream *pStream);
+   boolean getVTItems  (TVT_Net *pVT_Net,uint8_t  nn, LoopbackStream *pStream);
+   boolean getVTMacros (TVT_Net *pVT_Net,uint8_t  nn, LoopbackStream *pStream);
+   uint8_t getVTPoints (TVT_Net *pVT_Net,uint8_t  nn, LoopbackStream *pStream);
+   //   
+   boolean  getVTLanguages (TVT_Net *pVT_Net,uint8_t nn,LoopbackStream *pStream);
+   boolean  getVTCodePlanes(TVT_Net *pVT_Net,uint8_t nn,LoopbackStream *pStream);
+   uint16_t getVTCommands  (TVT_Net *pVT_Net,LoopbackStream *pStream);
+   //
+   void setAID_Net(TVT_Net *pVT_Net,boolean streamMode=true);
+   //
+   virtual String  getVTObjName(){return VTObjName;};
+   virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){};
+   virtual boolean writeToStream  (TVT_Net *pVT_Net,LoopbackStream *pStream){};
+   virtual boolean readFromStream (TVT_Net *pVT_Net,LoopbackStream *pStream){};
+   virtual boolean readPictureFromStream(TVT_Net *pVT_Net,uint32_t bCount,LoopbackStream *pStream){};
+   //
+   uint16_t writeStringToStream (LoopbackStream *pStream);
+   String   readStringFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream);
+   //AID
+   virtual void setAID(){};
+   virtual void getAID(){};
+   //
+   uint8_t setChangeAIDValue(uint8_t attrID,uint32_t attr,TVT_Net *pVT_Net);
+   boolean writeToStreamDirect(TVT_Net *pVT_Net,LoopbackStream *pStream);
+   //set text
+   void     setVTObjectTextDirect(String str,TVT_Net *pVT_Net);
+   uint16_t setVTObjectText      (String str,TVT_ViewRect *pViewRect,TVT_Net *pVT_Net,uint16_t fntID);
+   void     getVTTextDirect      (String str,TVT_Net *pVT_Net,boolean textMode);
+   void     getVTWrapModeText       (String str,TVT_Net *pVT_Net,boolean textMode);
+   void     getVTWrapModeTextUniCode(String str,TVT_Net *pVT_Net,boolean textMode);
+   //
+   String   getAttributeStringValue(String valueAttr,String nameAttr,boolean writeMode);
+   
+   uint8_t  SetVTObjectAttributeDirect(String nameAttr, String newValueAttr, TVT_Net *pVT_Net);
+   //
+   String   getVTObjectAttributeDirect(String nameAttr,TVT_Net *pVT_Net);
+   String   getVTObjectAttributeString(String nameAttr, TVT_Net *pVT_Net);
+   
+   //Commands
+   boolean getMsgToAttr(uint8_t cFunc, CANMsg *pMsg,TVT_Net *pVT_Net);
 
+};
+
+
+//------------------------------------------------------------------------------
+//Background Color object with backgroundColour attribute
+//------------------------------------------------------------------------------
+//type global
+ class TVTObjectBgCol :public TVTObject {
+  private:
+    //Private-Deklarationen
+  protected:
+    //Protected-Deklarationen
+    String VTObjName="VTObjectBgCol";
+    //Events
+    //fVTOnChangeBackgroundColour :TVTOnChangeBackgroundColour;
+  public:
+    //{ Public-Deklarationen }
+    uint8_t VTBackgroundColour=0;
+    //procedure
+ };
+
+
+//------------------------------------------------------------------------------
+//PROCEDURES
+//==============================================================================
+String  getInsertLineValue(TVT_Net *pVT_Net,String str);
+uint8_t getFileExists(TVT_Net *pVT_Net,uint8_t fsMode, const char *path);
+uint8_t getVTInpFontType(TVT_Net *pVT_Net);
+void    setUniCodeTextDirect(String str, TVT_Net *pVT_Net);
 
 //==============================================================================
 //CAN Transmit/Receive
 //==============================================================================
+void VT_CAN_ResetStatusInfo(TVT_Net *pVT_Net,uint8_t yMax);
+void WiFi_resetNetworks(TVT_Net *pVT_Net,String str);
+
+boolean VT_CAN_TraceMsg(TVT_Net *pVT_Net,CANMsg *pMsg);
 void VT_CAN_Init(TVT_Net *pVT_Net);
 void VT_CAN_MsgFrameStr(TVT_Net *pVT_Net,CANMsg *pMsg);
 void VT_CAN_MsgSend    (TVT_Net *pVT_Net,CANMsg *pMsg);
@@ -110,17 +217,20 @@ boolean VT_CAN_MsgReceive(TVT_Net *pVT_Net,CANMsg *pMsg);
 //
 void setVTStatusMessage(TVT_Net *pVT_Net,CANMsg *pMsg);
 
-
 //------------------------------------------------------------------------------
 //global procedure
 //------------------------------------------------------------------------------
+void reset_FontImageMode(TVT_Net *pVT_Net);
+//
 void printDateTimeStructure(String info,TVT_Net *pVT_Net);
 void getDateTimeStructure(TVT_Net *pVT_Net);
 void setDateTimeStructure(TVT_Net *pVT_Net);
 //
+time_t VTDateTimeMinute (TVT_Net *pVT_Net,boolean info=false,int8_t mOffset=0);
 time_t VTDateTime (TVT_Net *pVT_Net,boolean info=false,int8_t hOffset=0);
 time_t VTFlushTime(TVT_Net *pVT_Net,boolean info=false);
 time_t VTDateTimeInit(TVT_Net *pVT_Net,boolean compile=false,boolean setWiFi=false);
+void   setup_VTDateTime(TVT_Net *pVT_Net);
 //
 void setSerialPrint(TVT_Net *pVT_Net,String str, boolean pln=false);
 
@@ -189,10 +299,11 @@ void Set_drawString(TVT_Net *pVT_Net,String str, int16_t x, int16_t y,uint8_t tS
 void Set_drawCentreString(TVT_Net *pVT_Net,String str,int16_t x, int16_t y,uint8_t tSize=1);
 void Set_drawChar  (TVT_Net *pVT_Net,char cc, int16_t x, int16_t y,uint8_t tSize=1);
 void Set_drawNumber(TVT_Net *pVT_Net,int nn, int16_t x, int16_t y,uint8_t tSize=1);
-
-void Set_unloadFont(TVT_Net *pVT_Net);
-boolean Set_loadFont(TVT_Net *pVT_Net,String fntName);
-boolean Set_fontLoaded(TVT_Net *pVT_Net);
+//
+boolean  Set_smFont(TVT_Net *pVT_Net);
+void     Set_unloadFont(TVT_Net *pVT_Net);
+boolean  Set_loadFont(TVT_Net *pVT_Net,String fntName);
+boolean  Set_fontLoaded(TVT_Net *pVT_Net);
 uint16_t Set_fontsLoaded(TVT_Net *pVT_Net);
 
 void Set_setCursor(TVT_Net *pVT_Net,int16_t x,int16_t y);
@@ -224,10 +335,11 @@ TVT_StartEndPoint drawArcTicks(TVT_Net *pVT_Net,int16_t start_angle, int16_t end
 //------------------------------------------------------------------------------
 boolean getStreamHEX(LoopbackStream *pStream,TVT_Net *pVT_Net);
 //------------------------------------------------------------------------------
-void getStreamStrInfo (TVT_Net *pVT_Net,uint32_t dCount=0);
+void getStreamStrInfo (TVT_Net *pVT_Net,uint32_t dCount=0,boolean last=false);
 void getStreamDrawInfo(TVT_Net *pVT_Net,uint32_t dCount=0);
 boolean getStreamInfo(LoopbackStream *pStream,TVT_Net *pVT_Net);
-void getArray8Info(TVT_Net *pVT_Net,uint8_t   *ay, uint16_t lCount);
+String  getStreamTextInfo(LoopbackStream *pStream,TVT_Net *pVT_Net);
+uint16_t getArray8Info(TVT_Net *pVT_Net,uint8_t   *ay, uint16_t lCount,boolean info=true);
 void getArray16Info(TVT_Net *pVT_Net,uint16_t *ay, uint16_t lCount);
 void getArray32Info(TVT_Net *pVT_Net,uint32_t *ay, uint16_t lCount);
 //
@@ -249,6 +361,8 @@ void     getVTObjectListValue(TVT_Net *pVT_Net,uint16_t idx);
 uint32_t getVTObjPos   (TVT_Net *pVT_Net,uint16_t objIdx);
 uint32_t getVTObjLength(TVT_Net *pVT_Net,uint16_t objIdx);
 int16_t  getVTObjID    (TVT_Net *pVT_Net,uint16_t objID,boolean typeMode=false,boolean setStreamStr=true);
+void     getVTAuxObjectList(TVT_Net *pVT_Net);
+
 //------------------------------------------------------------------------------
 
 
@@ -259,6 +373,8 @@ void     getVTDrawListInfo       (TVT_Net *pVT_Net,int16_t objIdx,uint8_t showAt
 void     getVTDrawListInfoPrint  (TVT_Net *pVT_Net,int16_t objIdx,uint8_t showAttr=2);
 uint16_t getVTDrawListSize  (TVT_Net *pVT_Net);
 uint16_t setVTDrawListClear (TVT_Net *pVT_Net);
+//
+void     resetKeyButtonInputList(TVT_Net *pVT_Net);
 String   setVTDrawListSoftKey(TVT_Net *pVT_Net);
 boolean  setVTDrawListClearSelect (TVT_Net *pVT_Net,uint16_t objID);
 uint16_t getVTDrawListAdd   (TVT_Net *pVT_Net);
@@ -277,6 +393,7 @@ TVT_ViewRect  getViewRect(TVT_ViewRect *pViewRect);
 
 //------------------------------------------------------------------------------
 String  getWSNameFromName(TVT_Net *pVT_Net, String wsName);
+int8_t  getWSlistNrFromName(TVT_Net *pVT_Net, String wsName);
 String  getWSNameFromAddress(TVT_Net *pVT_Net, uint8_t src);
 void    setECUListNumber(TVT_Net *pVT_Net,CANMsg msg);
 void    setECUAddress(TVT_Net *pVT_Net,CANMsg msg);
@@ -288,7 +405,9 @@ void    getViewport(TVT_Net *pVT_Net, TVT_ViewRect *pViewRect, int16_t x, int16_
 boolean getPoolObjectPaint(TVT_Net *pVT_Net);
 
 //------------------------------------------------------------------------------
-void hexCharacterStringToBytes(byte *byteArray, const char *hexString);
+boolean IsStringNumeric(String str);
+String  getHexCharacterString(String str,boolean reverse=false);
+void    hexCharacterStringToBytes(byte *byteArray, const char *hexString);
 //
 //------------------------------------------------------------------------------
 boolean  SetObjPaintObjToRef (TVT_ViewRect *pViewRect,TVT_Net *pVT_Net,uint16_t objID,boolean TypeMode=false);
@@ -306,108 +425,8 @@ boolean VTPoolDataRefreshDirect(TVT_Net *pVT_Net,boolean push=true);
 
 
 //------------------------------------------------------------------------------
-//TVTObject
-//------------------------------------------------------------------------------
-//type global
-class TVTObject {
-  private:
-  protected:
-  public:
-   String   VTObjName="VTObject";
-   uint8_t  VTObjType=0xFF;
-   uint16_t VTObjID=0xFFFF;
-   //
-   uint8_t  VTError=0x00;
-   uint8_t  VTSelect=0x00;
-   uint32_t VTEvent=0;
-   //
-   uint8_t  VT_AID_Nr=32;
-   TVTAttrAID VTAttrAID[32];
-   //
-   //procedure
-   void     getVTDrawListAddObj(TVT_Net *pVT_Net,boolean enabled,TVT_ViewRect *pViewRect);
-   int8_t   SetSelectState     (TVT_Net *pVT_Net,boolean enabled,TVT_ViewRect *pViewRect);
-   //
-   uint16_t getVTItemsNumber(uint8_t idx, String attrName,TVT_Net *pVT_Net);
-   //
-   uint16_t setVTEvents (boolean writeMode);
-   //
-   boolean getVTColourItems(TVT_Net *pVT_Net,uint16_t nn, LoopbackStream *pStream);
-   boolean getVTString (TVT_Net *pVT_Net,uint16_t nn, LoopbackStream *pStream);
-   boolean getVTLabels (TVT_Net *pVT_Net,uint16_t nn, LoopbackStream *pStream);
-   boolean getVTObjects(TVT_Net *pVT_Net,uint8_t  nn, LoopbackStream *pStream);
-   boolean getVTItems  (TVT_Net *pVT_Net,uint8_t  nn, LoopbackStream *pStream);
-   boolean getVTMacros (TVT_Net *pVT_Net,uint8_t  nn, LoopbackStream *pStream);
-   uint8_t getVTPoints (TVT_Net *pVT_Net,uint8_t  nn, LoopbackStream *pStream);
-   //   
-   boolean  getVTLanguages (TVT_Net *pVT_Net,uint8_t nn,LoopbackStream *pStream);
-   boolean  getVTCodePlanes(TVT_Net *pVT_Net,uint8_t nn,LoopbackStream *pStream);
-   uint16_t getVTCommands  (TVT_Net *pVT_Net,LoopbackStream *pStream);
-   //
-   void setAID_Net(TVT_Net *pVT_Net,boolean streamMode=true);
-   //
-   
-   virtual String  getVTObjName(){return VTObjName;};
-
-   // by JG: add return value
-   virtual boolean PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net){return false;};
-   virtual boolean writeToStream  (TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
-   virtual boolean readFromStream (TVT_Net *pVT_Net,LoopbackStream *pStream){return false;};
-   virtual boolean readPictureFromStream(TVT_Net *pVT_Net,uint32_t bCount,LoopbackStream *pStream){return false;};
- 
-   //
-   uint16_t writeStringToStream (LoopbackStream *pStream);
-   String   readStringFromStream(TVT_Net *pVT_Net,LoopbackStream *pStream);
-   //AID
-   virtual void setAID(){};
-   virtual void getAID(){};
-   //
-   uint8_t setChangeAIDValue(uint8_t attrID,uint32_t attr,TVT_Net *pVT_Net);
-   boolean writeToStreamDirect(TVT_Net *pVT_Net,LoopbackStream *pStream);
-   //set text
-   void     setVTObjectTextDirect(String str,TVT_Net *pVT_Net);
-   uint16_t setVTObjectText      (String str,TVT_ViewRect *pViewRect,TVT_Net *pVT_Net,uint16_t fntID);
-   void     getVTTextDirect      (String str,TVT_Net *pVT_Net,boolean textMode);
-   void     getVTWrapModeText       (String str,TVT_Net *pVT_Net,boolean textMode);
-   void     getVTWrapModeTextUniCode(String str,TVT_Net *pVT_Net,boolean textMode);
-   //
-   String   getAttributeStringValue(String valueAttr,String nameAttr,boolean writeMode);
-   
-   uint8_t  SetVTObjectAttributeDirect(String nameAttr, String newValueAttr, TVT_Net *pVT_Net);
-   //
-   String   getVTObjectAttributeDirect(String nameAttr,TVT_Net *pVT_Net);
-   String   getVTObjectAttributeString(String nameAttr, TVT_Net *pVT_Net);
-   
-   //Commands
-   boolean getMsgToAttr(uint8_t cFunc, CANMsg *pMsg,TVT_Net *pVT_Net);
-
-};
-
-
-//------------------------------------------------------------------------------
-//Background Color object with backgroundColour attribute
-//------------------------------------------------------------------------------
-//type global
- class TVTObjectBgCol :public TVTObject {
-  private:
-    //Private-Deklarationen
-  protected:
-    //Protected-Deklarationen
-    String VTObjName="VTObjectBgCol";
-    //Events
-    //fVTOnChangeBackgroundColour :TVTOnChangeBackgroundColour;
-  public:
-    //{ Public-Deklarationen }
-    uint8_t VTBackgroundColour=0;
-    //procedure
- };
-
-
-//------------------------------------------------------------------------------
 //global procedure
 //------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-
 boolean removeClassObj(TVT_Net *pVT_Net,int16_t objIdx);
 boolean runClassObj      (TVT_Net *pVT_Net,TVT_ViewRect *pViewRect,LoopbackStream *pStream);
 //
@@ -416,10 +435,10 @@ boolean getVTAttrValue      (TVT_Net *pVT_Net,uint16_t attrID, TVTAttrValue *pAt
 String  getVTMacrosList(uint8_t eventID, TVT_Net *pVT_Net);
 uint8_t runMacroCommands(TVT_Net *pVT_Net, uint16_t objID);
 boolean getVTMacrosListEvents(TVT_Net *pVT_Net,uint16_t objID,uint8_t eventID);
+//
+void setVTAuxAssignListClear(TVT_Net *pVT_Net);
 
-
-
-  
+ 
 //==============================================================================
 //==============================================================================
 

@@ -167,12 +167,15 @@ void TVTAuxiliaryInput2::getAID2(){
 
 //==============================================================================
 boolean TVTAuxObject::PaintObjTo(TVT_ViewRect *pViewRect,TVT_Net *pVT_Net) {
-boolean  valid=(getVTObjectListSize(pVT_Net)>0);
-uint16_t w=pVT_Net->TFT_KeyWidth,h=pVT_Net->TFT_KeyHeight,oLevel=pVT_Net->level;
-int16_t  x=pVT_Net->x, y=pVT_Net->y,refIdx=-1;
-uint8_t  err=0x00;
-int16_t  objIdx=pVT_Net->objNr; 
+boolean  valid=(getVTObjectListSize(pVT_Net)>0),assign=false,TEST=false;
+uint16_t w=pVT_Net->TFT_KeyWidth,h=pVT_Net->TFT_KeyHeight,oLevel=pVT_Net->level,objID=0xFFFF;
+int16_t  objIdx=pVT_Net->objNr, x=pVT_Net->x, y=pVT_Net->y,refIdx=-1;
+uint8_t  err=0x00,oList=pVT_Net->listNr;
+int8_t   WS_auxFunc_listNr=-1,WS_auxInp_listNr=-1;
+String str="",WS_auxFunc="",WS_auxInp="",auxFunc="",auxInp="",auxValue="";
+ //
  setAID(); setAID_Net(pVT_Net);
+  //
   if (pViewRect==NULL) {
       if (pVT_Net->nameAttr!="") err=SetVTObjectAttributeDirect(pVT_Net->nameAttr, pVT_Net->newValueAttr,pVT_Net);
     pVT_Net->nameAttr="";
@@ -186,27 +189,143 @@ int16_t  objIdx=pVT_Net->objNr;
     getAID();pVT_Net->level++;
     //Paint
     getViewport(pVT_Net,&vvRect,x,y,w,h);
-    getVTDrawListAddObj(pVT_Net,true,&vvRect);
+      if (pVT_Net->VTInputIndex==255) pVT_Net->VTInputIndex=0;
+    getVTDrawListAddObj(pVT_Net,VTEnabled,&vvRect);
      //
      if ((VTPointerTyp==1) || (VTPointerTyp==3)){
-       //Serial.println(VTValue);
-       //Serial.println(VTPointerTyp);
-       //ref VTVariableReference external TODO
-       //SetObjPaintObjToRef(&vvRect,pVT_Net,VTValue);
-       Set_fillRect(pVT_Net,x+1,y+1,10,10,TFT_BLUE);    
+       if (TEST){ 
+        Serial.println("VTValue=" + String(VTValue));
+        Serial.println("VTPointerTyp=" + String(VTPointerTyp));
+        Serial.println("pVT_Net->listNr=" + String(pVT_Net->listNr));
+        Serial.println(delm0);
+       }
      }
+     //
      if (VTPointerTyp==0){
-      SetObjPaintObjToRef(&vvRect,pVT_Net,VTValue);
+       if (SetObjPaintObjToRef(&vvRect,pVT_Net,VTValue)) refIdx=0;
      }
      if (VTPointerTyp==2){
       pVT_Net->optn=33;
-      SetObjPaintObjToRef(&vvRect,pVT_Net,0,true);
+       if (SetObjPaintObjToRef(&vvRect,pVT_Net,0,true)) refIdx=0;
+     }
+     //
+     //get Assignment auxObj or auxWS
+     if ((pVT_Net->VTAuxAssignList.length()>40) && ((VTPointerTyp==1) || (VTPointerTyp==3))){
+     //if (VTPointerTyp==1){
+      refIdx=getVTObjID(pVT_Net,VTValue,false,true);
+      //Serial.println("refID=" + String(refIdx));
+        //        
+        if (refIdx>=0){
+          //
+          if (HasInArray(pVT_Net->VTObjType,auxAllObjSet2)){
+           auxValue=getStringHEX(VTValue,4);
+           str=pVT_Net->VTAuxAssignList;
+            //
+            if (TEST){
+             Serial.println("refID=" + String(refIdx));
+             Serial.println("refAux=" + String(pVT_Net->VTObjType));
+             getStreamStrInfo(pVT_Net);            
+             Serial.println(str);
+             Serial.println(auxValue);
+            }
+            //
+            while (str.length()>=40){
+             WS_auxFunc=str.substring(0,16); 
+             auxFunc=str.substring(16,20); 
+             WS_auxFunc_listNr=getWSlistNrFromName(pVT_Net,WS_auxFunc);
+             //
+             WS_auxInp=str.substring(20,36); 
+             auxInp=str.substring(36,40); 
+             WS_auxInp_listNr=getWSlistNrFromName(pVT_Net,WS_auxInp);
+               //
+               if (TEST){
+                Serial.println("WS_auxFunc=" + WS_auxFunc);
+                Serial.println("auxFunc="    + auxFunc);
+                Serial.println("WS_auxFunc_listNr=" + String(WS_auxFunc_listNr));
+                //
+                Serial.println("WS_auxInp="  + WS_auxInp);
+                Serial.println("auxInp="     + auxInp);
+                Serial.println("WS_auxInp_listNr=" + String(WS_auxInp_listNr));
+               }
+               //
+               //FOUND AUX_ASSIGN
+               //found auxInp assignment for auxFunc
+               if ((pVT_Net->VTObjType==gAuxFuncType) && (auxFunc==auxValue)) {
+                Serial.println("FOUND auxFunc=" + auxFunc);
+                objID=hexCharacterToObjID(auxInp);
+                Serial.println("WS_auxInp_listNr=" + String(WS_auxInp_listNr));
+                Serial.println("auxInp_objID=" + String(objID));
+                  //
+                  if ((WS_auxInp_listNr<2) && (oList!=WS_auxInp_listNr)) {
+                    pVT_Net->listNr=(pVT_Net->listNr+1) % 2;
+                  }
+                  //
+                  if (VTPointerTyp==3){
+                   objID=0xFFFF;
+                    if (getVTObjID(pVT_Net,0,true,true)>=0) {
+                      pVT_Net->optn=33;
+                      objID=pVT_Net->VTObjID; 
+                      Serial.println("auxInp_WS_objID=" + String(objID));
+                    }
+                  }
+                  // 
+                Serial.println("pVT_Net->listNr=" + String(pVT_Net->listNr));
+                assign=SetObjPaintObjToRef(&vvRect,pVT_Net,objID);
+                break; //while
+               }//gAuxFuncType
+               //
+               //found auxFunc assignment for auxInp
+               if ((pVT_Net->VTObjType==gAuxInpType) && (auxInp==auxValue)) {
+                Serial.println("FOUND auxInp=" + auxInp);
+                objID=hexCharacterToObjID(auxFunc);
+                Serial.println("WS_auxFunc_listNr=" + String(WS_auxFunc_listNr));
+                Serial.println("auxFunc_objID=" + String(objID));
+                  //
+                  if ((WS_auxFunc_listNr<2) && (oList!=WS_auxFunc_listNr)) {
+                    pVT_Net->listNr=(pVT_Net->listNr+1) % 2;
+                  }
+                  //
+                  if (VTPointerTyp==3){
+                   objID=0xFFFF;
+                    if (getVTObjID(pVT_Net,0,true,true)>=0) {
+                      pVT_Net->optn=33;
+                      objID=pVT_Net->VTObjID; 
+                      Serial.println("auxFunc_WS_objID=" + String(objID));
+                    }
+                  }
+                  // 
+                Serial.println("pVT_Net->listNr=" + String(pVT_Net->listNr));
+                assign=SetObjPaintObjToRef(&vvRect,pVT_Net,objID);
+                break; //while
+               }//gAuxInpType
+               //
+               //
+             str.remove(0,41);  
+            }//while
+            //
+           pVT_Net->optn=0;
+           pVT_Net->listNr=oList;
+           Serial.println(delm0);
+          }//refAux
+          //         
+          if (!assign) refIdx=-1;
+        }//>40
+     }//VTPointerTyp==1 or VTPointerTyp==3 
+     //
+     //
+     if (refIdx>=0){
+      //Serial.println(delm1);
+     } else {
+      Set_fillRect(pVT_Net,x+1,y+1,10,10,TFT_BLUE);    
      }
      //  
+    //Serial.println(delm1);
+      
     pVT_Net->optn=0;
     getViewport(pVT_Net,&vRect,x,y,w,h);
     SetSelectState(pVT_Net,true,&vRect);
     getVTObjectFromList(pVT_Net,objIdx); 
+      if (VTEnabled) pVT_Net->VTInputIndex++;
     pVT_Net->level=oLevel;
   }//valid 
  return valid;  

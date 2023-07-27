@@ -30,6 +30,12 @@
  #include "UnitVTMacroCommandObject.h"
 #endif
 
+//==============================================================================
+#ifndef UnitVTAuxAssignment_h
+ #define UnitVTAuxAssignment_h
+ #include "UnitVTAuxAssignment.h"
+#endif
+
 
 //==============================================================================
 //CAN-Messages
@@ -39,88 +45,90 @@
  #include "UnitVTCommandTechData.h"
 #endif
 
+//==============================================================================
+//TECU CAN-Messages
+//==============================================================================
+#ifndef UnitVTCommandTECU_h
+ #define UnitVTCommandTECU_h
+ #include "UnitVTCommandTECU.h"
+#endif
+
+
 
 //==============================================================================
 //VTScreen Keyboard
 //==============================================================================
 #include <Free_Fonts.h>
-
-#define KEYBOARD_X (2)
-#define KEYBOARD_Y (26)
-
-#define KEY_W (45)
-#define KEY_H (50)
-
-#define COLS (7)
-#define ROWS (4)
-
-#define MAX_SHIFT_MODE (4)
-
 //==============================================================================
-char keymap[MAX_SHIFT_MODE][ROWS][COLS] =
+//shift,blank,LF,CR,TAB,LR,ESC,ESC
+String keyStr[8]={"shift","mod","blank","LF","CR","TAB","left","right"};
+//String keyStr[8]={"SHT","MOD","BLK","LF","CR","TAB","LFT","RGT"};
+//
+wchar_t keymap[MAX_SHIFT_MODE][ROWS][COLS] =
 {
   {
-    {'a', 'b', 'c', 'd', 'e', 'f', 'g'},
-    {'h', 'i', 'j', 'k', 'l', 'm', 'n'},
-    {'o', 'p', 'q', 'r', 's', 't', 'u'},
-    {'v', 'w', 'x', 'y', 'z', ' ', '\002'}, // 002 = shift
+    {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'},
+    {'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'},
+    {'q', 'r', 's', 't', 'u', 'v', 'w', 'x'},
+    {'y', 'z', '=', '.', '{', '|', '}', '~'},//,0x007F,0x0080},
+    {'\001','\002',0x0020,0x000A,0x000D,0x0009,'\003','\004'}, //001=shift, 002=mode,0x0020=blank,0x000A=LF,0x000D=CR,0x0009=TAB,003=left,004=right
+    //shift,mode,blank,LF,CR,TAB,left,right
   },
   {
-    {'A', 'B', 'C', 'D', 'E', 'F', 'G'},
-    {'H', 'I', 'J', 'K', 'L', 'M', 'N'},
-    {'O', 'P', 'Q', 'R', 'S', 'T', 'U'},
-    {'V', 'W', 'X', 'Y', 'Z', ' ', '\002'}, // 002 = shift
+    {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'},
+    {'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'},
+    {'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'},
+    {'Y', 'Z', '[', '\\',']', '^', '_', '`'},
+    {'\001','\002',0x0020,0x000A,0x000D,0x0009,'\003','\004'}, //001=shift, 002=mode,0x0020=blank,0x000A=LF,0x000D=CR,0x0009=TAB,003=left,004=right
+    //shift,mode,blank,LF,CR,TAB,left,right
   },
   {
-    {'`', '1', '2', '3', '4', '5', '6'},
-    {'7', '8', '9', '0', '-', '=', '['},
-    {']', '\\', ';', '\'', ',', '.', '/'},
-    {' ', ' ', ' ', ' ', ' ', ' ', '\002'}, // 002 = shift
+    {'1', '2', '3', '4', '5', '6', '7', '8'},
+    {'9', '0', '-', '+', '.', ',', '=', 'E'},
+    {'!', '"', '#', '$', '%', '&', '\'','('},
+    {')', '*', '/', ':', ';', '<', '>', '@'},
+    {'\001','\002',0x0020,0x000A,0x000D,0x0009,'\003','\004'}, //001=shift, 002=mode,0x0020=blank,0x000A=LF,0x000D=CR,0x0009=TAB,003=left,004=right
+    //shift,mode,blank,LF,CR,TAB,left,right
   },
   {
-    {'~', '!', '@', '#', '$', '%', '^'},
-    {'&', '*', '(', ')', '_', '+', '{'},
-    {'}', '|', ':', '"', '<', '>', '?'},
-    {' ', ' ', ' ', ' ', ' ', ' ', '\002'}, // 002 = shift
+    {'!', '"', '#', '$', '%', '&', '\'','^'},
+    {'(', ')', '*', '+', ',', '-', '.', '/'},
+    {':', ';', '<', '=', '>', '?', '@', '['},
+    {'\\',']', '^', '_', '{', '|', '}', '~'},
+    {'\001','\002',0x0020,0x000A,0x000D,0x0009,'\003','\004'}, //001=shift, 002=mode,0x0020=blank,0x000A=LF,0x000D=CR,0x0009=TAB,003=left,004=right
+    //shift,mode,blank,LF,CR,TAB,left,right
   },
 };
 
-typedef enum {
-  KEY_MODE_LETTER = 0,
-  KEY_MODE_NUMBER = 1,
-} key_mode_t;
 
 //==============================================================================
 //global variable
+//==============================================================================
+int16_t key_pos=0, key_start=0,key_max=10,key_size=20;
 String input_text="";
 key_mode_t key_mode = KEY_MODE_LETTER;
 bool shift_mode = false;
-Button *touch_button_list[COLS*ROWS];
+bool setGesture = false;
 
-//==============================================================================
-//==============================================================================
+Button *touch_button_list[COLS*ROWS];
+//uniCode viewer
+Button *touch_button_uniCode[3];
+
 setup_t user; // The library defines the type "setup_t" as a struct
               // Calling tft.getSetup(user) populates it with the settings
 
 
-//==============================================================================
-//global variable
-//==============================================================================
-//StreamString  inputSerialString;      // a String to hold incoming data
-String  inputSerialString;      // a String to hold incoming data
-
-boolean inputSerialComplete = false;  // whether the string is complete
-boolean notSerialReceive=false;
-boolean SD_Mode=true;
 
 //==============================================================================
-//PROTOTYPE
+//PROTOTYPE PROCEDURES
 //==============================================================================
 //------------------------------------------------------------------------------
 void getStackStatus(TVT_Net *pVT_Net) {
   #if defined(ESP32) && defined(STACK_MODE)
    void* SpActual = NULL;
-   Serial.printf("Free Stack at actual position is: %d \r\n", (uint32_t)&SpActual - (uint32_t)pVT_Net->StackPtrEnd);
+    if (pVT_Net->serialOut){
+     Serial.printf("Free Stack at actual position is: %d \r\n", (uint32_t)&SpActual - (uint32_t)pVT_Net->StackPtrEnd);
+    }
   #endif//STACK_MODE
 };//getStackStatus
 
@@ -142,17 +150,18 @@ void setupStack() {
 //==============================================================================
 //==============================================================================
 void logMemory() {
-  Serial.println("USED_LOG_MEMORY");
-  Serial.print("Used PSRAM:");  Serial.println(ESP.getPsramSize() - ESP.getFreePsram());
+  setSerialPrint(pVT_Net,"USED_LOG_MEMORY");
+  setSerialPrint(pVT_Net,"Used PSRAM:",true);  
+  setSerialPrint(pVT_Net,String(ESP.getPsramSize() - ESP.getFreePsram()));
 };//logMemory
 
 //==============================================================================
 void setup_log() {
-  Serial.println("SETUP_LOG_MEMORY");
-  Serial.print("Total heap:");  Serial.println(ESP.getHeapSize());
-  Serial.print("Free heap:");   Serial.println(ESP.getFreeHeap());
-  Serial.print("Total PSRAM:"); Serial.println(ESP.getPsramSize());
-  Serial.print("Free PSRAM:");  Serial.println(ESP.getFreePsram());
+  setSerialPrint(pVT_Net,"SETUP_LOG_MEMORY");
+  setSerialPrint(pVT_Net,"Total heap:",true);  setSerialPrint(pVT_Net,String(ESP.getHeapSize()));
+  setSerialPrint(pVT_Net,"Free heap:",true);   setSerialPrint(pVT_Net,String(ESP.getFreeHeap()));
+  setSerialPrint(pVT_Net,"Total PSRAM:",true); setSerialPrint(pVT_Net,String(ESP.getPsramSize()));
+  setSerialPrint(pVT_Net,"Free PSRAM:",true);  setSerialPrint(pVT_Net,String(ESP.getFreePsram()));
 };//setup_log
 
 //==============================================================================
@@ -316,7 +325,7 @@ Serial.println(delm1);
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels,String str="") {
 uint16_t lCount=0;
 String fileStr="",dirStr=String(dirname),fileSize="";
- if ((pVT_Net->sp_available) || (pVT_Net->sd_available)) {
+ if ((pVT_Net->valid_sp) || (pVT_Net->valid_sd)) {
   if (dirStr.indexOf('/')==0) {
    //TODO 
   }else {
@@ -374,7 +383,7 @@ String fileStr="",dirStr=String(dirname),fileSize="";
 String getSdFat_Info() {
 String str="";
 uint64_t cardSize0=0,cardSize=0; 
- if (pVT_Net->sd_available) {
+ if (pVT_Net->valid_sd) {
   uint8_t cardType = SD.cardType();
    if(cardType == CARD_NONE){
     str="No SD card attached";
@@ -418,7 +427,7 @@ String getSPIFFS_Info() {
 String ssOut="SPIFFS_Info:";
 float totalB,usedB;
  //
-  if (pVT_Net->sp_available) {
+  if (pVT_Net->valid_sp) {
    totalB=SPIFFS.totalBytes()/1024.0/1024.0;
    usedB=SPIFFS.usedBytes()/1024.0/1024.0;
    //
@@ -440,32 +449,32 @@ float totalB,usedB;
 void getSP_SD_List(String str){
 uint8_t j=str.toInt();
 int8_t k=-1; 
-   if ((SD_Mode) && (!pVT_Net->sd_available)) {
-    Serial.println("SD_MODE not available");
+   if ((pVT_Net->SD_Mode) && (!pVT_Net->valid_sd)) {
+    setSerialPrint(pVT_Net,"SD_MODE not available");
     return;
    }
-   if ((!SD_Mode) && (!pVT_Net->sp_available)) {
-    Serial.println("SPIFFS_MODE not available");
+   if ((!pVT_Net->SD_Mode) && (!pVT_Net->valid_sp)) {
+    setSerialPrint(pVT_Net,"SPIFFS_MODE not available");
     return;
    }
    //
-   if (SD_Mode) getSdFat_Info(); else getSPIFFS_Info();
+   if (pVT_Net->SD_Mode) getSdFat_Info(); else getSPIFFS_Info();
    //
    if (str.indexOf("/")==0){
      k=str.lastIndexOf("/");
        if (k>0) {
          str.remove(k,1);
-          if (SD_Mode) listDir(*pVT_Net->fs_SD, str.c_str(), 1,"SD:"); else listDir(*pVT_Net->fs_SP, str.c_str(), 1,"SPIFFS:"); 
+          if (pVT_Net->SD_Mode) listDir(*pVT_Net->fs_SD, str.c_str(), 1,"SD:"); else listDir(*pVT_Net->fs_SP, str.c_str(), 1,"SPIFFS:"); 
        } else {
          #ifdef WEB_MODE
-            if (SD_Mode) str=getFileList_SD(str,false); else str=getFileList_SP(str,false);
-          Serial.println(str);
+            if (pVT_Net->SD_Mode) str=getFileList_SD(str,false); else str=getFileList_SP(str,false);
+          setSerialPrint(pVT_Net,str);
          #else
-           if (SD_Mode) listDir(*pVT_Net->fs_SD, str.c_str(), 0,"SD:");else listDir(*pVT_Net->fs_SP, str.c_str(), 0,"SPIFFS:");
+           if (pVT_Net->SD_Mode) listDir(*pVT_Net->fs_SD, str.c_str(), 0,"SD:");else listDir(*pVT_Net->fs_SP, str.c_str(), 0,"SPIFFS:");
          #endif
        }//j>0 
    } else {
-    if (SD_Mode) listDir(*pVT_Net->fs_SD, "/", j,"SD:"); else listDir(*pVT_Net->fs_SP, "/", j,"SPIFFS:");   
+    if (pVT_Net->SD_Mode) listDir(*pVT_Net->fs_SD, "/", j,"SD:"); else listDir(*pVT_Net->fs_SP, "/", j,"SPIFFS:");   
    }
 };//getSP_SD_List
 
@@ -552,7 +561,7 @@ String str="",fntName="";
 void getPoolObjectReset(TVT_Net *pVT_Net,boolean pClear=false) {
 uint16_t lCount=getVTObjectListSize(pVT_Net);
  setVTObjectListClear(pVT_Net);
- Serial.println("VTObjectList=" + String(lCount));
+ setSerialPrint(pVT_Net,"VTObjectList=" + String(lCount));
  VTPoolDataRefresh(pVT_Net,pClear);
  logMemory();
  //getHeapStatus(pVT_Net,3);
@@ -584,7 +593,8 @@ boolean valid=getFileExists(pVT_Net,2,path);
   if (valid){ 
    fs::File file = fs.open(path,FILE_READ);
     if ((file) && (pStream!=NULL)) {
-      Serial.print(path); Serial.print(" FileSize="); Serial.print(file.size());
+      setSerialPrint(pVT_Net,String(path),true); setSerialPrint(pVT_Net," FileSize=",true); 
+      setSerialPrint(pVT_Net,String(file.size()),true);
         if (pVT_Net->PSRam) {
           pStream->setNewBufferSize(file.size(),pVT_Net->PSRam);
           buff=pStream->getBuffer();
@@ -593,11 +603,11 @@ boolean valid=getFileExists(pVT_Net,2,path);
           pStream->setSize(len);pStream->setPos(0);
         }
         //     
-      Serial.print(" BufferSize="); Serial.print(pStream->getBufferSize());
-      Serial.print(" Bufferlen=");  Serial.println(pStream->available());
+      setSerialPrint(pVT_Net," BufferSize=",true); setSerialPrint(pVT_Net,String(pStream->getBufferSize()),true);
+      setSerialPrint(pVT_Net," Bufferlen=",true);  setSerialPrint(pVT_Net,String(pStream->available()));
       file.close();
     }
-   //Serial.println(pStream->available()); 
+   //setSerialPrint(pVT_Net,String(pStream->available())); 
   }  
  return valid; //  (len>0);
 };//Set_loadFontToPSRAM
@@ -635,12 +645,12 @@ uint8_t  kNr=pVT_Net->TFT_KeyNr;
            dName="/" + fntName +  + ".vlw"; 
            valid=false;tStr=".";
             //Set font to PSRAM from SPIFFS
-            if ((!valid) && (pVT_Net->sp_available)) {
+            if ((!valid) && (pVT_Net->valid_sp)) {
               valid=(Set_loadFontToPSRAM(SPIFFS,dName.c_str(),&pVT_Net->stream_Font[i][j]));tStr=".";
             }
             //Set font to PSRAM from SD
-            if ((!valid) && (pVT_Net->sd_available)) {
-               //Serial.println(dName);
+            if ((!valid) && (pVT_Net->valid_sd)) {
+               //setSerialPrint(pVT_Net,dName);
                valid=(Set_loadFontToPSRAM(SD,dName.c_str(),&pVT_Net->stream_Font[i][j])); tStr=":";
             }
             //
@@ -651,8 +661,8 @@ uint8_t  kNr=pVT_Net->TFT_KeyNr;
                 Set_drawString(pVT_Net,fntStr,x+20+12*j,i*h+10);
                }
                //TEST
-               //Serial.print(String(i) + "_" + String(j) + " ");
-               //Serial.println(pVT_Net->stream_Font[i][j].available());
+               //setSerialPrint(pVT_Net,String(i) + "_" + String(j) + " ",true);
+               //setSerialPrint(pVT_Net,String(pVT_Net->stream_Font[i][j].available()));
             } else str+="!"; 
           } else str+="!";
           //
