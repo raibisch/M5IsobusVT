@@ -1,6 +1,6 @@
 # M5IsobusVT
 
-[![License](https://img.shields.io/badge/license-EUPL1.2-green)](license/LICENSE.md)
+[![License](https://img.shields.io/badge/license-EUPL1.2-green)](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12)
 
 This is an implementation of an ISOBUS-VT on the M5-Stack module. Most of the code is from my College Reinhard Hübner (thank you very much for this great work). I only rearange some part of the code to compile it with PlatformIO and remove some unused code.
 
