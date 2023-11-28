@@ -2,11 +2,10 @@
 
 [![License](https://img.shields.io/badge/license-EUPL1.2-green)](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12)
 
-Implementation of an ISOBUS-VT on the *M5-Stack core2* module. 
+Implementation of an ISOBUS-VT on the **M5-Stack core2** module.
+
 ...maybe the smallest ISOBUS-VT of the world !
 
-This is still a first apha-version...there will be more documentation and development in near future ;-)
-!! DONT USE IN IN A REAL TRACTOR - ONLY FOR EDUCATION AND TRAINING IN LAB !!
 
 ![picture_m5stack1](/docs/vt1.jpg) ![picture_m5stack1](/docs/vt2.jpg)
 
@@ -37,6 +36,9 @@ For the CAN communication we use the internal ESP32 CAN controller and map it to
 * Don't add M5Stack as external lib, because there are some changes to the original lib. Changes from the original code are marked with 'huebner'
 * We have changed the ESP32-Arduino default stack size, so if you compile it outside from Platform-IO change the stack size in the arduino startup code.
 
+**!! DONT USE IN IN A REAL TRACTOR - ONLY FOR EDUCATION AND TRAINING IN LAB !!**
+
+
 ### PlatformIO and Arduino-IDE
 
 Projekt was build and testet with PlatformIO, for Arduino-IDE we will add in future some extra infos.
@@ -52,9 +54,10 @@ https://de.wikipedia.org/wiki/ISOBUS
 https://github.com/Meisterschulen-am-Ostbahnhof-Munchen
 https://isobus-plus-plus.readthedocs.io/en/latest/index.html
 
-### 'PConvert' ISOBUS Test and Simulation Program
+### 'pConvert' ISOBUS Test and Simulation Program
 
-https://meisterschulen-am-ostbahnhof-munchen-docs.readthedocs.io/projects/isobus-other-docs/de/latest/pconvert.html
+![pconvert](/docs/pconvert.jpg)
+(please send me an email for getting the "pConvert lite" version)
 
 ## Licence
 
